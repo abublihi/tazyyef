@@ -3,8 +3,9 @@ const Integration = require("../models/Integration");
 
 function trafficLogger(req, res, next) {
   const start = Date.now();
+  const requestPath = req.path;
 
-  console.log(`[Traffic] Middleware hit: ${req.method} ${req.path}`);
+  console.log(`[Traffic] Middleware hit: ${req.method} ${requestPath}`);
 
   const originalJson = res.json.bind(res);
 
@@ -13,12 +14,12 @@ function trafficLogger(req, res, next) {
     const statusCode = res.statusCode;
 
     console.log(
-      `[Traffic] Response: ${req.method} ${req.path} -> ${statusCode}`,
+      `[Traffic] Response: ${req.method} ${requestPath} -> ${statusCode}`,
     );
 
-    if (req.path.startsWith("/mock")) {
-      const parts = req.path.split("/").filter(Boolean);
-      const integrationKey = parts[0] || "";
+    if (requestPath.startsWith("/mock")) {
+      const parts = requestPath.split("/").filter(Boolean);
+      const integrationKey = parts[1] || "";
 
       console.log(`[Traffic] Logging mock request: key=${integrationKey}`);
 
@@ -38,7 +39,7 @@ function trafficLogger(req, res, next) {
             integrationKey,
             integrationId: integration ? integration.id : "",
             method: req.method,
-            path: req.path,
+            path: requestPath,
             headers,
             query: req.query,
             body: req.body || {},
