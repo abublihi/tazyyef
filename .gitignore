@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Optional npm cache
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Redis dump
+dump.rdb
+
+# Sessions
+sessions/
