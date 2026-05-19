@@ -1,48 +1,61 @@
 # API Mock
 
-A full-stack API mocking application with a web-based admin panel, Redis-backed storage, and intelligent scenario matching.
+A full-stack API mocking application with a web-based admin panel, Redis-backed storage, intelligent scenario matching, and Postman collection import support.
+
+> **Notice:** This project was written entirely by AI.
 
 ## Features
 
 - **Integrations Management** — CRUD operations for mock API integrations with auto-generated unique keys
 - **Scenario Management** — Define mock responses per endpoint, method, headers, query params, and body params
-- **Dynamic Response Matching** — Requests are matched to the most specific scenario based on parameter overlap
-- **Admin Panel** — Web UI for managing integrations and scenarios, with built-in scenario testing
+- **Dynamic Response Matching** — Requests are matched to the most specific scenario based on parameter overlap scoring
+- **Postman Collection Import** — Import v2 Postman collections with preview, conflict detection, and options to skip, create, or overwrite existing endpoints
+- **Traffic Logging** — Automatic logging of all mock API requests and responses with response time tracking, filterable by integration
+- **Admin Panel** — Web UI for managing integrations, scenarios, traffic logs, and built-in scenario testing
 - **Session-based Auth** — Admin login with bcrypt-hashed password and persistent sessions via Redis
 - **Rate Limiting** — Configurable rate limiting on the mock API to prevent abuse
 - **Request Logging** — HTTP request/response logging via Morgan
+- **Redis Persistence** — All data stored in Redis and persists across app restarts
 
 ## Project Structure
 
 ```
-api-mock/
+tazyyef/
 ├── src/
 │   ├── config/
 │   │   ├── env.js          # Environment variable loader
 │   │   └── redis.js        # Redis client setup
 │   ├── models/
 │   │   ├── Integration.js  # Integration data model (Redis-backed)
-│   │   └── Scenario.js     # Scenario data model (Redis-backed)
+│   │   ├── Scenario.js     # Scenario data model (Redis-backed)
+│   │   └── Traffic.js      # Traffic log data model (Redis-backed)
 │   ├── services/
 │   │   ├── integrationService.js
 │   │   ├── scenarioService.js
 │   │   ├── authService.js
-│   │   └── mockService.js  # Scenario matching logic
+│   │   ├── mockService.js          # Scenario matching logic
+│   │   ├── postmanImportService.js # Postman collection parser
+│   │   └── trafficService.js       # Traffic log operations
 │   ├── controllers/
 │   │   ├── integrationController.js
 │   │   ├── scenarioController.js
 │   │   ├── authController.js
-│   │   └── mockController.js
+│   │   ├── mockController.js
+│   │   ├── importController.js     # Postman import handler
+│   │   └── trafficController.js    # Traffic log handler
 │   ├── routes/
 │   │   ├── integrations.js
 │   │   ├── scenarios.js
 │   │   ├── auth.js
-│   │   └── mock.js
+│   │   ├── mock.js
+│   │   ├── traffic.js
+│   │   └── import.js
 │   ├── middleware/
 │   │   ├── auth.js         # Session authentication guard
 │   │   ├── rateLimiter.js  # Rate limiting for mock API
 │   │   ├── logger.js       # HTTP request logging
-│   │   └── validator.js    # JSON field validation
+│   │   ├── validator.js    # JSON field validation
+│   │   └── trafficLogger.js # Automatic traffic capture
 │   └── app.js              # Express app entry point
 ├── public/
 │   ├── index.html          # Admin panel HTML
@@ -111,7 +124,9 @@ Navigate to `http://localhost:3000` and log in with the credentials from your `.
 
 1. **Create an Integration** — Give it a name; a unique key is auto-generated (e.g., `mock-a1b2c3d4`)
 2. **Add Scenarios** — Define endpoint, method, matching conditions, and the mock response
-3. **Test Scenarios** — Use the built-in test panel to send requests and verify responses
+3. **Import from Postman** — Paste a Postman v2 collection JSON to preview and import endpoints
+4. **View Traffic Logs** — Monitor all mock API requests and responses
+5. **Test Scenarios** — Use the built-in test panel to send requests and verify responses
 
 ### Mock API
 
@@ -157,6 +172,12 @@ All admin endpoints require authentication (session cookie).
 | GET | `/api/admin/scenarios/:id` | Get scenario by ID |
 | PUT | `/api/admin/scenarios/:id` | Update scenario |
 | DELETE | `/api/admin/scenarios/:id` | Delete scenario |
+| POST | `/api/admin/integrations/:id/import/preview` | Preview Postman collection import |
+| POST | `/api/admin/integrations/:id/import/confirm` | Confirm and execute import |
+| GET | `/api/admin/traffic` | List traffic logs |
+| GET | `/api/admin/traffic/:id` | Get traffic log entry |
+| DELETE | `/api/admin/traffic/:id` | Delete traffic log entry |
+| DELETE | `/api/admin/traffic` | Clear all traffic logs |
 
 ## Redis Persistence
 
