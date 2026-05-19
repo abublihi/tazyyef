@@ -18,6 +18,7 @@ router.post(
 router.get("/integrations/:integrationId/scenarios", ScenarioController.list);
 
 // Individual scenario operations
+router.get("/scenarios", ScenarioController.listAll);
 router.get("/scenarios/:id", ScenarioController.getById);
 router.put(
   "/scenarios/:id",

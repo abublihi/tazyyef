@@ -21,6 +21,26 @@ class ScenarioController {
     }
   }
 
+  // GET /api/admin/scenarios
+  static async listAll(req, res) {
+    try {
+      const scenarios = await ScenarioService.listAll(req.query.search);
+      const integrations = await require("../models/Integration").list();
+      const integrationMap = new Map(integrations.map((i) => [i.id, i]));
+      const enriched = scenarios.map((s) => {
+        const integration = integrationMap.get(s.integrationId);
+        return {
+          ...s,
+          integrationName: integration ? integration.name : "Unknown",
+          integrationKey: integration ? integration.key : "",
+        };
+      });
+      res.json(enriched);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   // GET /api/admin/scenarios/:id
   static async getById(req, res) {
     try {

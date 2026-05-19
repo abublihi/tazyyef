@@ -179,6 +179,22 @@ class Scenario {
     return created;
   }
 
+  static async listAll(search) {
+    const keys = await redis.keys(`${SCENARIO_PREFIX}*`);
+    const scenarios = await Promise.all(
+      keys.map((key) => redis.hgetall(key))
+    );
+    const results = scenarios.filter(Boolean);
+    if (!search) return results;
+    const term = search.toLowerCase();
+    return results.filter((s) =>
+      s.endpoint.toLowerCase().includes(term) ||
+      s.method.toLowerCase().includes(term) ||
+      s.responseCode.toString().includes(term) ||
+      (s.source && s.source.toLowerCase().includes(term))
+    );
+  }
+
   static async findConflicts(integrationId, endpoints) {
     const existingScenarios = await this.listByIntegration(integrationId);
     const existingMap = new Map();

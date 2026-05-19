@@ -276,6 +276,9 @@ async function deleteIntegration(id) {
 }
 
 // ─── Integration Detail View ──────────────────────────────────────────────────
+let detailScenarios = [];
+let detailSearchTimeout = null;
+
 async function openIntegrationDetail(id) {
   currentDetailIntegrationId = id;
   const integration = integrations.find((i) => i.id === id);
@@ -293,37 +296,71 @@ async function openIntegrationDetail(id) {
 
 function closeIntegrationDetail() {
   currentDetailIntegrationId = null;
+  detailScenarios = [];
+  document.getElementById("detailScenarioSearch").value = "";
   document.getElementById("integrationsListView").classList.remove("hidden");
   document.getElementById("integrationDetailView").classList.add("hidden");
 }
+
+document.getElementById("detailScenarioSearch").addEventListener("input", (e) => {
+  clearTimeout(detailSearchTimeout);
+  detailSearchTimeout = setTimeout(() => {
+    renderIntegrationScenarios(detailScenarios);
+  }, 300);
+});
+
+document.getElementById("detailScenarioSearch").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    e.target.value = "";
+    renderIntegrationScenarios(detailScenarios);
+  }
+});
 
 async function loadIntegrationScenarios(id) {
   try {
     const integrationScenarios = await api(`/integrations/${id}/scenarios`);
     const integration = integrations.find((i) => i.id === id);
-    const enriched = integrationScenarios.map((s) => ({
+    detailScenarios = integrationScenarios.map((s) => ({
       ...s,
       integrationName: integration.name,
       integrationKey: integration.key,
     }));
-    renderIntegrationScenarios(enriched);
+    renderIntegrationScenarios(detailScenarios);
   } catch (err) {
     toast(err.message, "error");
   }
 }
 
+function getDetailSearchTerm() {
+  return document.getElementById("detailScenarioSearch")?.value?.trim().toLowerCase() || "";
+}
+
+function filterDetailScenarios() {
+  const term = getDetailSearchTerm();
+  if (!term) return detailScenarios;
+  return detailScenarios.filter((s) =>
+    s.endpoint.toLowerCase().includes(term) ||
+    s.method.toLowerCase().includes(term) ||
+    s.responseCode.toString().includes(term)
+  );
+}
+
 function renderIntegrationScenarios(scenarioList) {
+  const filtered = filterDetailScenarios();
   const container = document.getElementById("integrationScenariosList");
-  if (!scenarioList.length) {
+  if (!filtered.length) {
+    const message = getDetailSearchTerm()
+      ? "No scenarios match your search."
+      : "No scenarios for this integration. Create one to get started.";
     container.innerHTML = `
       <div class="glass-card">
         <div class="empty-state">
-          <p>No scenarios for this integration. Create one to get started.</p>
+          <p>${message}</p>
         </div>
       </div>`;
     return;
   }
-  container.innerHTML = scenarioList
+  container.innerHTML = filtered
     .map(
       (s) => {
         const rateInfo = s.rateLimit
@@ -391,6 +428,8 @@ document.getElementById("deleteIntegrationFromDetailBtn").addEventListener("clic
 });
 
 // ─── Scenarios ────────────────────────────────────────────────────────────────
+let scenarioSearchTimeout = null;
+
 function populateIntegrationDropdowns() {
   const options = integrations.map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
   document.getElementById("scenarioIntegration").innerHTML = options;
@@ -402,36 +441,47 @@ function populateIntegrationDropdowns() {
 
 async function loadScenarios() {
   const filterId = document.getElementById("scenarioIntegrationFilter").value;
-  scenarios = [];
-  for (const integration of integrations) {
-    if (filterId && integration.id !== filterId) continue;
-    const items = await api(`/integrations/${integration.id}/scenarios`);
-    scenarios.push(...items.map((s) => ({ ...s, integrationName: integration.name, integrationKey: integration.key })));
+  const searchTerm = document.getElementById("scenarioSearch")?.value?.trim() || "";
+  const query = new URLSearchParams();
+  if (searchTerm) query.set("search", searchTerm);
+
+  scenarios = await api(`/scenarios?${query.toString()}`);
+
+  if (filterId) {
+    scenarios = scenarios.filter((s) => s.integrationId === filterId);
   }
+
   renderScenarios();
 }
 
 document.getElementById("scenarioIntegrationFilter").addEventListener("change", loadScenarios);
 
+document.getElementById("scenarioSearch").addEventListener("input", (e) => {
+  clearTimeout(scenarioSearchTimeout);
+  scenarioSearchTimeout = setTimeout(() => {
+    loadScenarios();
+  }, 300);
+});
+
+document.getElementById("scenarioSearch").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    e.target.value = "";
+    loadScenarios();
+  }
+});
+
 function renderScenarios() {
   const container = document.getElementById("scenariosList");
   const filterId = document.getElementById("scenarioIntegrationFilter").value;
 
-  if (!filterId) {
-    container.innerHTML = `
-      <div class="glass-card">
-        <div class="empty-state">
-          <p>Select an integration to view its scenarios.</p>
-        </div>
-      </div>`;
-    return;
-  }
-
   if (!scenarios.length) {
+    const message = filterId
+      ? "No scenarios for this integration. Create one to get started."
+      : "No scenarios found.";
     container.innerHTML = `
       <div class="glass-card">
         <div class="empty-state">
-          <p>No scenarios for this integration. Create one to get started.</p>
+          <p>${message}</p>
         </div>
       </div>`;
     return;
@@ -716,25 +766,6 @@ function openImportModal(integrationId) {
 
   openModal("importModal");
 }
-
-document.getElementById("importPostmanBtn").addEventListener("click", () => {
-  if (!integrations.length) {
-    toast("Create an integration first before importing", "error");
-    return;
-  }
-  if (integrations.length === 1) {
-    openImportModal(integrations[0].id);
-  } else {
-    const selected = prompt("Enter the integration name to import into:\n\nAvailable:\n" + integrations.map(i => `• ${i.name}`).join("\n"));
-    if (!selected) return;
-    const integration = integrations.find(i => i.name.toLowerCase() === selected.toLowerCase());
-    if (!integration) {
-      toast("Integration not found", "error");
-      return;
-    }
-    openImportModal(integration.id);
-  }
-});
 
 document.getElementById("importPostmanFromDetailBtn").addEventListener("click", () => {
   if (currentDetailIntegrationId) {

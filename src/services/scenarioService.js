@@ -43,6 +43,10 @@ class ScenarioService {
     return Scenario.listByIntegration(integrationId);
   }
 
+  static async listAll(search) {
+    return Scenario.listAll(search);
+  }
+
   static async getById(id) {
     const scenario = await Scenario.getById(id);
     if (!scenario) throw new Error("Scenario not found");
