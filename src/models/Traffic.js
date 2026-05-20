@@ -1,9 +1,11 @@
 const redis = require("../config/redis");
 const { v4: uuidv4 } = require("uuid");
+const env = require("../config/env");
 
 const TRAFFIC_PREFIX = "traffic:";
 const TRAFFIC_INDEX = "traffic:index";
 const TRAFFIC_BY_INTEGRATION = "traffic:integration:";
+const TRAFFIC_TTL_SECONDS = env.trafficLogTtlDays * 24 * 60 * 60;
 
 class Traffic {
   static async log({ integrationKey, integrationId, method, path, headers, query, body, statusCode, responseTime, matchedScenarioId }) {
@@ -27,6 +29,7 @@ class Traffic {
 
     const multi = redis.multi();
     multi.hset(`${TRAFFIC_PREFIX}${id}`, entry);
+    multi.expire(`${TRAFFIC_PREFIX}${id}`, TRAFFIC_TTL_SECONDS);
     multi.zadd(TRAFFIC_INDEX, Date.now(), id);
     if (integrationId) {
       const key = `${TRAFFIC_BY_INTEGRATION}${integrationId}`;

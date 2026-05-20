@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require("uuid");
 
 const INTEGRATION_PREFIX = "integration:";
 const INTEGRATION_INDEX = "integrations:index";
+const INTEGRATION_KEY_INDEX = "integration:key:index";
 
 class Integration {
   // Create a new integration with auto-generated unique key
@@ -21,6 +22,7 @@ class Integration {
     const multi = redis.multi();
     multi.hset(`${INTEGRATION_PREFIX}${id}`, integration);
     multi.sadd(INTEGRATION_INDEX, id);
+    multi.hset(INTEGRATION_KEY_INDEX, integrationKey, id);
     await multi.exec();
 
     return integration;
@@ -33,16 +35,11 @@ class Integration {
     return data;
   }
 
-  // Fetch a single integration by its unique key
+  // Fetch a single integration by its unique key (O(1) via secondary index)
   static async getByKey(key) {
-    const ids = await redis.smembers(INTEGRATION_INDEX);
-    for (const id of ids) {
-      const data = await redis.hget(`${INTEGRATION_PREFIX}${id}`, "key");
-      if (data === key) {
-        return this.getById(id);
-      }
-    }
-    return null;
+    const id = await redis.hget(INTEGRATION_KEY_INDEX, key);
+    if (!id) return null;
+    return this.getById(id);
   }
 
   // List all integrations with optional search
@@ -74,7 +71,14 @@ class Integration {
       updatedAt: new Date().toISOString(),
     };
 
-    await redis.hset(`${INTEGRATION_PREFIX}${id}`, updated);
+    const multi = redis.multi();
+    multi.hset(`${INTEGRATION_PREFIX}${id}`, updated);
+    if (fields.key && fields.key !== existing.key) {
+      multi.hdel(INTEGRATION_KEY_INDEX, existing.key);
+      multi.hset(INTEGRATION_KEY_INDEX, fields.key, id);
+    }
+    await multi.exec();
+
     return updated;
   }
 
@@ -83,9 +87,13 @@ class Integration {
     const Scenario = require("./Scenario");
     await Scenario.deleteAllForIntegration(id);
 
+    const data = await this.getById(id);
     const multi = redis.multi();
     multi.del(`${INTEGRATION_PREFIX}${id}`);
     multi.srem(INTEGRATION_INDEX, id);
+    if (data && data.key) {
+      multi.hdel(INTEGRATION_KEY_INDEX, data.key);
+    }
     await multi.exec();
     return true;
   }
