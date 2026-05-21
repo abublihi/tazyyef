@@ -5,7 +5,14 @@ class MockService {
   // Find the best matching scenario for an incoming mock request.
   // A scenario is eligible only if ALL of its match criteria are satisfied.
   // Among eligible scenarios, the one with the most criteria wins (most specific).
-  static async matchScenario(integrationKey, endpoint, method, headers, query, body) {
+  static async matchScenario(
+    integrationKey,
+    endpoint,
+    method,
+    headers,
+    query,
+    body,
+  ) {
     const integration = await Integration.getByKey(integrationKey);
     if (!integration) return null;
 
@@ -58,7 +65,11 @@ class MockService {
       if (["POST", "PUT", "PATCH"].includes(reqMethod)) {
         for (const [key, value] of Object.entries(scenario.bodyParams)) {
           totalCriteria += 1;
-          if (body && body[key] !== undefined && String(body[key]) === String(value)) {
+          if (
+            body &&
+            body[key] !== undefined &&
+            String(body[key]) === String(value)
+          ) {
             matchedCriteria += 1;
           } else {
             allMatch = false;

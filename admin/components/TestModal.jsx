@@ -69,11 +69,17 @@ function generateCurl(url, method, headersObj, bodyText) {
   });
 
   // Always add content-type for body methods
-  if ((method === "POST" || method === "PUT" || method === "PATCH") && !headersObj["Content-Type"]) {
+  if (
+    (method === "POST" || method === "PUT" || method === "PATCH") &&
+    !headersObj["Content-Type"]
+  ) {
     cmd += ` \\\n  -H "Content-Type: application/json"`;
   }
 
-  if (bodyText && (method === "POST" || method === "PUT" || method === "PATCH")) {
+  if (
+    bodyText &&
+    (method === "POST" || method === "PUT" || method === "PATCH")
+  ) {
     cmd += ` \\\n  -d '${bodyText.replace(/'/g, "'\\''")}'`;
   }
 
@@ -82,7 +88,12 @@ function generateCurl(url, method, headersObj, bodyText) {
   return cmd;
 }
 
-export default function TestModal({ open, onOpenChange, integration, scenario }) {
+export default function TestModal({
+  open,
+  onOpenChange,
+  integration,
+  scenario,
+}) {
   const [method, setMethod] = useState("GET");
   const [headersText, setHeadersText] = useState("");
   const [queryString, setQueryString] = useState("");
@@ -100,7 +111,11 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
       setQueryString(jsonToQueryString(scenario.queryParams));
       try {
         const bodyObj = JSON.parse(scenario.bodyParams || "{}");
-        setBody(Object.keys(bodyObj).length > 0 ? JSON.stringify(bodyObj, null, 2) : "");
+        setBody(
+          Object.keys(bodyObj).length > 0
+            ? JSON.stringify(bodyObj, null, 2)
+            : "",
+        );
       } catch {
         setBody("");
       }
@@ -115,10 +130,16 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
   const mockUrl = (() => {
     const url = new URL(mockUrlBase);
     if (queryString) {
-      const extra = queryString.startsWith("?") ? queryString.slice(1) : queryString;
+      const extra = queryString.startsWith("?")
+        ? queryString.slice(1)
+        : queryString;
       extra.split("&").forEach((pair) => {
         const [k, v] = pair.split("=");
-        if (k) url.searchParams.append(decodeURIComponent(k), v ? decodeURIComponent(v) : "");
+        if (k)
+          url.searchParams.append(
+            decodeURIComponent(k),
+            v ? decodeURIComponent(v) : "",
+          );
       });
     }
     return url.toString();
@@ -133,17 +154,25 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
     try {
       const url = new URL(mockUrlBase);
       if (queryString) {
-        const extra = queryString.startsWith("?") ? queryString.slice(1) : queryString;
+        const extra = queryString.startsWith("?")
+          ? queryString.slice(1)
+          : queryString;
         extra.split("&").forEach((pair) => {
           const [k, v] = pair.split("=");
-          if (k) url.searchParams.append(decodeURIComponent(k), v ? decodeURIComponent(v) : "");
+          if (k)
+            url.searchParams.append(
+              decodeURIComponent(k),
+              v ? decodeURIComponent(v) : "",
+            );
         });
       }
 
       const opts = {
         method,
         headers: {
-          ...(body && ["POST", "PUT", "PATCH"].includes(method) ? { "Content-Type": "application/json" } : {}),
+          ...(body && ["POST", "PUT", "PATCH"].includes(method)
+            ? { "Content-Type": "application/json" }
+            : {}),
           ...headersObj,
         },
       };
@@ -212,11 +241,15 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
         </DialogHeader>
 
         {/* Scenario Info Bar */}
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/40">
-          <Badge className={`${methodColors[method] || ""} text-[10px] font-mono font-bold`}>
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/40 overflow-scroll whitespace-pre">
+          <Badge
+            className={`${methodColors[method] || ""} text-[10px] font-mono font-bold`}
+          >
             {method}
           </Badge>
-          <code className="text-xs font-mono text-foreground truncate">{scenario.endpoint}</code>
+          <code className="text-xs font-mono text-foreground">
+            {scenario.endpoint}
+          </code>
           <span className="text-[10px] text-muted-foreground ml-auto">
             {integration.name}
           </span>
@@ -226,14 +259,21 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
         <div className="flex items-center gap-1">
           {tabButton("test", <Play className="h-3 w-3" />, "Test")}
           {tabButton("curl", <Terminal className="h-3 w-3" />, "cURL")}
-          {response && tabButton("response", <Settings2 className="h-3 w-3" />, "Response")}
+          {response &&
+            tabButton(
+              "response",
+              <Settings2 className="h-3 w-3" />,
+              "Response",
+            )}
         </div>
 
         {/* ── TEST TAB ── */}
         {activeTab === "test" && (
           <div className="space-y-4">
             <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">URL</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                URL
+              </Label>
               <div className="mt-1 overflow-auto max-w-full rounded-md border border-border/40 bg-input">
                 <code className="block p-2.5 text-xs font-mono text-foreground whitespace-break-spaces min-w-full">
                   {mockUrl}
@@ -243,21 +283,36 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
 
             <div className="flex gap-3">
               <div className="w-[120px]">
-                <Label htmlFor="method" className="text-[10px] uppercase tracking-wider text-muted-foreground">Method</Label>
+                <Label
+                  htmlFor="method"
+                  className="text-[10px] uppercase tracking-wider text-muted-foreground"
+                >
+                  Method
+                </Label>
                 <Select value={method} onValueChange={setMethod}>
-                  <SelectTrigger id="method" className="bg-input border-border/40 h-9 text-xs mt-1">
+                  <SelectTrigger
+                    id="method"
+                    className="bg-input border-border/40 h-9 text-xs mt-1"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {["GET", "POST", "PUT", "DELETE", "PATCH"].map((m) => (
-                      <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
+                      <SelectItem key={m} value={m} className="text-xs">
+                        {m}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex-1">
-                <Label htmlFor="query" className="text-[10px] uppercase tracking-wider text-muted-foreground">Query String</Label>
+                <Label
+                  htmlFor="query"
+                  className="text-[10px] uppercase tracking-wider text-muted-foreground"
+                >
+                  Query String
+                </Label>
                 <Input
                   id="query"
                   placeholder="key=value&foo=bar"
@@ -269,7 +324,12 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
             </div>
 
             <div>
-              <Label htmlFor="headers" className="text-[10px] uppercase tracking-wider text-muted-foreground">Headers</Label>
+              <Label
+                htmlFor="headers"
+                className="text-[10px] uppercase tracking-wider text-muted-foreground"
+              >
+                Headers
+              </Label>
               <Textarea
                 id="headers"
                 placeholder="X-Custom-Header: value&#10;Authorization: Bearer token"
@@ -282,7 +342,12 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
 
             {["POST", "PUT", "PATCH"].includes(method) && (
               <div>
-                <Label htmlFor="body" className="text-[10px] uppercase tracking-wider text-muted-foreground">Body (JSON)</Label>
+                <Label
+                  htmlFor="body"
+                  className="text-[10px] uppercase tracking-wider text-muted-foreground"
+                >
+                  Body (JSON)
+                </Label>
                 <Textarea
                   id="body"
                   placeholder='{"key": "value"}'
@@ -318,14 +383,25 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
         {activeTab === "curl" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Generated cURL Command</Label>
-              <Button variant="ghost" size="sm" onClick={copyCurl} className="h-7 text-xs gap-1">
-                {copiedCurl ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Generated cURL Command
+              </Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyCurl}
+                className="h-7 text-xs gap-1"
+              >
+                {copiedCurl ? (
+                  <Check className="h-3 w-3 text-primary" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
                 {copiedCurl ? "Copied" : "Copy"}
               </Button>
             </div>
             <div className="overflow-auto max-h-64 rounded-lg border border-border/40 bg-input">
-                <pre className="p-4 text-xs font-mono text-foreground whitespace-break-spaces leading-relaxed min-w-full">
+              <pre className="p-4 text-xs font-mono text-foreground whitespace-break-spaces leading-relaxed min-w-full">
                 {curlCommand}
               </pre>
             </div>
@@ -334,16 +410,22 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
 
         {/* ── RESPONSE TAB ── */}
         {activeTab === "response" && response && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-auto">
             <div className="flex items-center gap-3">
-              <Badge className={`${statusColor(response.status)} text-xs font-semibold`}>
+              <Badge
+                className={`${statusColor(response.status)} text-xs font-semibold`}
+              >
                 {response.status} {response.statusText}
               </Badge>
-              <span className="text-xs text-muted-foreground font-mono">{response.responseTime}ms</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {response.responseTime}ms
+              </span>
             </div>
 
             <div>
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Response Headers</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
+                Response Headers
+              </Label>
               <div className="overflow-auto max-h-32 rounded-lg border border-border/40 bg-input">
                 <pre className="p-3 text-[11px] font-mono text-foreground whitespace-break-spaces min-w-full">
                   {JSON.stringify(response.headers, null, 2)}
@@ -353,9 +435,20 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Response Body</Label>
-                <Button variant="ghost" size="sm" onClick={copyResponse} className="h-7 text-xs gap-1">
-                  {copiedResponse ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Response Body
+                </Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyResponse}
+                  className="h-7 text-xs gap-1"
+                >
+                  {copiedResponse ? (
+                    <Check className="h-3 w-3 text-primary" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
                   {copiedResponse ? "Copied" : "Copy"}
                 </Button>
               </div>
@@ -369,7 +462,11 @@ export default function TestModal({ open, onOpenChange, integration, scenario })
         )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-xs uppercase tracking-wider">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="text-xs uppercase tracking-wider"
+          >
             Close
           </Button>
         </DialogFooter>
