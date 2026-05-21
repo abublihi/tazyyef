@@ -32,7 +32,8 @@ import {
   DialogFooter,
 } from "../ui/dialog";
 import { Badge } from "../ui/badge";
-import { RefreshCw, Trash2, Eye, Loader2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { RefreshCw, Trash2, Eye, Loader2, Route } from "lucide-react";
 import { toast } from "sonner";
 import { methodColors, statusColor, formatTime } from "../../lib/utils";
 import ConfirmDialog from "../ConfirmDialog";
@@ -56,12 +57,16 @@ export default function TrafficPage() {
       traffic.list({
         limit,
         offset,
-        integrationId: integrationFilter === "all" ? undefined : integrationFilter,
+        integrationId:
+          integrationFilter === "all" ? undefined : integrationFilter,
       }),
   });
 
   const clearMutation = useMutation({
-    mutationFn: () => traffic.clear(integrationFilter === "all" ? undefined : integrationFilter),
+    mutationFn: () =>
+      traffic.clear(
+        integrationFilter === "all" ? undefined : integrationFilter,
+      ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["traffic"] });
       toast.success(res.message);
@@ -118,6 +123,35 @@ export default function TrafficPage() {
       ),
     },
     {
+      id: "scenario",
+      header: "Scenario",
+      cell: ({ row }) => {
+        const entry = row.original;
+        if (!entry.matchedScenarioId || !entry.scenarioEndpoint) {
+          return (
+            <span className="text-xs text-muted-foreground/40 italic">
+              —
+            </span>
+          );
+        }
+        return (
+          <Link
+            to={`/scenarios/${entry.matchedScenarioId}`}
+            className="inline-flex items-center gap-1.5 group"
+          >
+            <span
+              className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold shrink-0 ${methodColors[entry.scenarioMethod] || methodColors.GET}`}
+            >
+              {entry.scenarioMethod}
+            </span>
+            <code className="text-xs font-mono text-muted-foreground group-hover:text-primary transition-colors truncate max-w-[140px]">
+              {entry.scenarioEndpoint}
+            </code>
+          </Link>
+        );
+      },
+    },
+    {
       accessorKey: "responseTime",
       header: "Response Time",
       cell: ({ row }) => (
@@ -167,7 +201,9 @@ export default function TrafficPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["traffic"] })}
+            onClick={() =>
+              queryClient.invalidateQueries({ queryKey: ["traffic"] })
+            }
           >
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
@@ -185,7 +221,13 @@ export default function TrafficPage() {
       </div>
 
       <div className="flex gap-3 mb-4">
-        <Select value={integrationFilter} onValueChange={(v) => { setIntegrationFilter(v); setOffset(0); }}>
+        <Select
+          value={integrationFilter}
+          onValueChange={(v) => {
+            setIntegrationFilter(v);
+            setOffset(0);
+          }}
+        >
           <SelectTrigger className="w-[220px]">
             <SelectValue placeholder="All Integrations" />
           </SelectTrigger>
@@ -211,7 +253,7 @@ export default function TrafficPage() {
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -221,13 +263,19 @@ export default function TrafficPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-8">
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-center py-8"
+                >
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No traffic logged yet.
                 </TableCell>
               </TableRow>
@@ -238,7 +286,7 @@ export default function TrafficPage() {
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -288,14 +336,17 @@ export default function TrafficPage() {
         }}
       />
 
-      <Dialog open={!!detailId} onOpenChange={(open) => !open && setDetailId(null)}>
+      <Dialog
+        open={!!detailId}
+        onOpenChange={(open) => !open && setDetailId(null)}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Traffic Detail</DialogTitle>
           </DialogHeader>
 
           {detailEntry && (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-auto">
               <div className="flex items-center gap-3">
                 <span
                   className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-mono font-semibold ${methodColors[detailEntry.method] || ""}`}
@@ -308,11 +359,39 @@ export default function TrafficPage() {
                 >
                   {detailEntry.statusCode}
                 </span>
-                <span className="text-sm text-muted-foreground ml-auto">
-                  {detailEntry.responseTime}ms — {formatTime(detailEntry.timestamp)}
-                </span>
               </div>
 
+              {detailEntry.matchedScenarioId && detailEntry.scenarioEndpoint && (
+                <div className="glass-panel rounded-lg p-3 border border-primary/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Route className="h-3 w-3 text-primary/60" />
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                      Matched Scenario
+                    </span>
+                  </div>
+                  <Link
+                    to={`/scenarios/${detailEntry.matchedScenarioId}`}
+                    className="flex items-center gap-2 group"
+                  >
+                    <span
+                      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-mono font-semibold ${methodColors[detailEntry.scenarioMethod] || methodColors.GET}`}
+                    >
+                      {detailEntry.scenarioMethod}
+                    </span>
+                    <code className="text-sm font-mono text-muted-foreground group-hover:text-primary transition-colors">
+                      {detailEntry.scenarioEndpoint}
+                    </code>
+                  </Link>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <span className="text-sm text-muted-foreground ml-auto">
+                  {detailEntry.responseTime}ms —{" "}
+                  {formatTime(detailEntry.timestamp)}
+                </span>
+              </div>
               <div className="space-y-2">
                 <Label>Request Headers</Label>
                 <pre className="bg-muted p-3 rounded-md text-xs font-mono overflow-auto max-h-40">
