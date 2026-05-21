@@ -125,10 +125,10 @@ export default function TestModal({
 
   if (!integration || !scenario) return null;
 
-  const mockUrlBase = `http://localhost:3000/mock/${integration.key}${scenario.endpoint}`;
+  const mockUrlBase = `/mock/${integration.key}${scenario.endpoint}`;
 
   const mockUrl = (() => {
-    const url = new URL(mockUrlBase);
+    const url = new URL(mockUrlBase, window.location.href);
     if (queryString) {
       const extra = queryString.startsWith("?")
         ? queryString.slice(1)
@@ -152,7 +152,7 @@ export default function TestModal({
     setIsLoading(true);
     setResponse(null);
     try {
-      const url = new URL(mockUrlBase);
+      const url = new URL(mockUrlBase, window.location.href);
       if (queryString) {
         const extra = queryString.startsWith("?")
           ? queryString.slice(1)
