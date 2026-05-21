@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { scenarios } from "../../lib/api";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Pencil, Trash2, Play } from "lucide-react";
+import { Pencil, Trash2, Play, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { methodColors, statusColor, esc } from "../../lib/utils";
 import TestModal from "../TestModal";
@@ -70,19 +71,24 @@ export default function ScenarioList({ scenarios: list, integrations, onEdit }) 
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-mono font-semibold ${methodColors[s.method] || ""}`}
+                    <Link
+                      to={`/scenarios/${s.id}`}
+                      className="flex items-center gap-2 group"
                     >
-                      {s.method}
-                    </span>
-                    <code className="text-sm font-mono truncate">
-                      {esc(s.endpoint)}
-                    </code>
-                    <span
-                      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${statusColor(Number(s.responseCode))}`}
-                    >
-                      {s.responseCode}
-                    </span>
+                      <span
+                        className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-mono font-semibold ${methodColors[s.method] || ""}`}
+                      >
+                        {s.method}
+                      </span>
+                      <code className="text-sm font-mono truncate group-hover:text-primary transition-colors">
+                        {esc(s.endpoint)}
+                      </code>
+                      <span
+                        className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${statusColor(Number(s.responseCode))}`}
+                      >
+                        {s.responseCode}
+                      </span>
+                    </Link>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">
@@ -96,6 +102,11 @@ export default function ScenarioList({ scenarios: list, integrations, onEdit }) 
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={`/scenarios/${s.id}`} title="View details">
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

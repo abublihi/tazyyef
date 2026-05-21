@@ -6,6 +6,7 @@ import LoginScreen from "../components/LoginScreen";
 import IntegrationsPage from "../components/Integrations/IntegrationsPage";
 import IntegrationDetailPage from "../components/Integrations/IntegrationDetailPage";
 import ScenariosPage from "../components/Scenarios/ScenariosPage";
+import ScenarioDetailPage from "../components/Scenarios/ScenarioDetailPage";
 import TrafficPage from "../components/Traffic/TrafficPage";
 import ErrorBoundary from "../components/ErrorBoundary";
 
@@ -76,6 +77,12 @@ const scenariosRoute = createRoute({
   component: () => <ErrorBoundary><ScenariosPage /></ErrorBoundary>,
 });
 
+const scenarioDetailRoute = createRoute({
+  getParentRoute: () => protectedLayoutRoute,
+  path: "/scenarios/$id",
+  component: () => <ErrorBoundary><ScenarioDetailPage /></ErrorBoundary>,
+});
+
 const trafficRoute = createRoute({
   getParentRoute: () => protectedLayoutRoute,
   path: "/traffic",
@@ -89,6 +96,7 @@ const routeTree = rootRoute.addChildren([
     integrationsRoute,
     integrationDetailRoute,
     scenariosRoute,
+    scenarioDetailRoute,
     trafficRoute,
   ]),
 ]);

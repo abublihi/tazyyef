@@ -36,6 +36,7 @@ export const integrations = {
 export const scenarios = {
   listAll: (search = "") => api.get(`/scenarios${search ? `?search=${encodeURIComponent(search)}` : ""}`),
   getById: (id) => api.get(`/scenarios/${id}`),
+  getTraffic: (id, { limit = 100, offset = 0 } = {}) => api.get(`/scenarios/${id}/traffic?limit=${limit}&offset=${offset}`),
   create: (integrationId, data) => api.post(`/integrations/${integrationId}/scenarios`, data),
   update: (id, data) => api.put(`/scenarios/${id}`, data),
   delete: (id) => api.delete(`/scenarios/${id}`),
