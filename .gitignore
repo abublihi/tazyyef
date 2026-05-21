@@ -47,3 +47,5 @@ dump.rdb
 
 # Sessions
 sessions/
+
+.claude/
