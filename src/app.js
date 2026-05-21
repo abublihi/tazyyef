@@ -66,15 +66,15 @@ const isDev = process.env.NODE_ENV !== "production";
 const useAdminBuild = fs.existsSync(path.join(adminDist, "index.html"));
 
 async function setupFrontend() {
-  if (isDev && !useAdminBuild) {
-    // In development: attach Vite middleware before other routes
+  if (isDev) {
+    // In development: attach Vite middleware for HMR and fresh module resolution
     const { createServer } = require("vite");
     const vite = await createServer({
       server: { middlewareMode: true },
     });
     app.use(vite.middlewares);
   } else {
-    // In production or when build exists: serve static files
+    // In production: serve static build
     app.use(express.static(adminDist));
 
     // SPA fallback for React Router
