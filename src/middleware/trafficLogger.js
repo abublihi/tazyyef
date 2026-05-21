@@ -28,7 +28,7 @@ function trafficLogger(req, res, next) {
             body: req.body || {},
             statusCode,
             responseTime,
-            matchedScenarioId: body && body._scenarioId ? body._scenarioId : "",
+            matchedScenarioId: res.locals.matchedScenarioId || "",
           })
         )
         .catch((err) => console.error("[Traffic] Failed to log:", err.message));

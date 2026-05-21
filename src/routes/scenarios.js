@@ -22,6 +22,7 @@ router.get("/integrations/:integrationId/scenarios", ScenarioController.list);
 // Individual scenario operations
 router.get("/scenarios", ScenarioController.listAll);
 router.get("/scenarios/:id", ScenarioController.getById);
+router.get("/scenarios/:id/traffic", ScenarioController.getTraffic);
 router.put(
   "/scenarios/:id",
   validateBody(scenarioUpdateSchema),

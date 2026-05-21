@@ -40,6 +40,7 @@ class MockController {
           responseBody = match.responseBody;
         }
 
+        res.locals.matchedScenarioId = match.id;
         res.status(parseInt(match.responseCode, 10)).json(responseBody);
         resolve();
       });
