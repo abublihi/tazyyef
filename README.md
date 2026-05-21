@@ -6,7 +6,7 @@ API Mocking
 
 A full-stack API mocking application with a React admin panel, Redis-backed storage, intelligent scenario matching, and Postman collection import support.
 
-![Demo](system-screenrecording.gif)
+![Demo](demo.mp4)
 
 ## Purpose
 
@@ -84,81 +84,6 @@ API Mock is designed to simulate REST API integrations so you can develop, test,
 - **Docker Support** — Multi-stage `Dockerfile` for optimized production builds.
 - **CI/CD Pipeline** — GitHub Actions workflow runs the test suite across Node.js versions 18, 20, and 22.
 
-## Project Structure
-
-```
-tazyyef/
-├── admin/                          # React SPA (Vite + Tailwind)
-│   ├── components/                 #   UI components
-│   │   ├── Integrations/           #     Integration list, detail, forms
-│   │   ├── Scenarios/              #     Scenario list, detail, forms
-│   │   ├── Traffic/                #     Traffic log viewer
-│   │   ├── ui/                     #     Shared primitives (dialog, select, etc.)
-│   │   ├── Layout.jsx              #     App shell with sidebar navigation
-│   │   ├── LoginScreen.jsx         #     Login form
-│   │   ├── PostmanImportModal.jsx  #     Postman collection import UI
-│   │   ├── TestModal.jsx           #     Scenario testing panel
-│   │   ├── ConfirmDialog.jsx       #     Confirmation dialog
-│   │   └── ErrorBoundary.jsx       #     React error boundary
-│   ├── hooks/useAuth.js            #   Auth state hook
-│   ├── lib/api.js                  #   API client (axios)
-│   ├── lib/utils.js                #   Utility helpers
-│   ├── routes/index.jsx            #   TanStack Router configuration
-│   ├── schemas/                    #   Zod validation schemas
-│   ├── dist/                       #   Production build output
-│   ├── index.html
-│   └── main.jsx                    #   React entry point
-├── public/                         # Static assets (favicon, logo)
-├── src/
-│   ├── config/
-│   │   ├── env.js                  # Environment variable loader
-│   │   ├── redis.js                # Redis client setup (ioredis)
-│   │   └── sessionStore.js         # Redis-backed session store
-│   ├── controllers/
-│   │   ├── authController.js
-│   │   ├── importController.js     # Postman import handler
-│   │   ├── integrationController.js
-│   │   ├── mockController.js
-│   │   ├── scenarioController.js
-│   │   └── trafficController.js
-│   ├── middleware/
-│   │   ├── auth.js                 # Session authentication guard
-│   │   ├── logger.js               # HTTP request logging (Morgan)
-│   │   ├── rateLimiter.js          # Rate limiting (global + per-scenario)
-│   │   ├── trafficLogger.js        # Automatic traffic capture
-│   │   └── validator.js            # JSON field validation (Zod)
-│   ├── models/
-│   │   ├── Integration.js          # Integration data model (Redis)
-│   │   ├── Scenario.js             # Scenario data model (Redis)
-│   │   └── Traffic.js              # Traffic log data model (Redis)
-│   ├── routes/
-│   │   ├── auth.js
-│   │   ├── integrations.js         # Integrations + Postman import routes
-│   │   ├── mock.js                 # Public mock API endpoint
-│   │   ├── scenarios.js
-│   │   └── traffic.js
-│   ├── services/
-│   │   ├── authService.js
-│   │   ├── integrationService.js
-│   │   ├── mockService.js          # Scenario matching engine
-│   │   ├── postmanImportService.js # Postman collection parser
-│   │   ├── scenarioService.js
-│   │   └── trafficService.js
-│   └── app.js                      # Express entry point
-├── tests/unit/
-│   ├── authService.test.js
-│   ├── mockService.test.js
-│   └── postmanImportService.test.js
-├── .env                            # Environment variables (committed for dev)
-├── .github/workflows/test.yml      # CI: test matrix (18, 20, 22)
-├── Dockerfile                      # Multi-stage production build
-├── jest.config.js
-├── nodemon.json                    # Dev auto-reload config
-├── vite.config.js                  # Vite config for admin SPA
-├── tailwind.config.cjs
-└── postcss.config.cjs
-```
-
 ## Prerequisites
 
 - **Node.js** >= 18
@@ -222,9 +147,99 @@ The server starts at `http://localhost:3000`.
 
 ### Docker
 
+#### Pull & Run from Docker Hub
+
+The fastest way to get started — no need to clone or build:
+
 ```bash
-docker build -t tazyyef .
-docker run -p 3000:3000 --env-file .env tazyyef
+# Pull the latest image
+docker pull abublihi/tazyyef:latest
+
+# Run the app (Redis is required dependency put your config)
+docker run -d \
+  --name tazyyef \
+  -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e REDIS_URL=redis://host.docker.internal:6379 \
+  -e ADMIN_USER=admin \
+  -e ADMIN_PASS=admin \
+  -e SESSION_SECRET=your-random-secret-key \
+  abublihi/tazyyef:latest
+```
+
+**Access the app:** `http://localhost:3000`
+
+#### Docker Compose
+
+For a complete orchestrated setup with Redis:
+
+```bash
+# docker-compose.yml
+version: "3.8"
+
+services:
+  app:
+    image: abublihi/tazyyef:latest
+    container_name: tazyyef-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - ADMIN_USER=admin
+      - ADMIN_PASS=admin
+      - SESSION_SECRET=your-random-secret-key
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: tazyyef-redis
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis-data:
+```
+
+Run it:
+
+```bash
+docker-compose up -d
+```
+
+---
+
+#### Required Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ADMIN_USER` | Admin username for the web panel | `admin` |
+| `ADMIN_PASS` | Admin password for the web panel | `changeme` |
+| `SESSION_SECRET` | Secret key for signing session cookies | `super-secret-random-string` |
+| `REDIS_URL` | Redis connection URL | `redis://host.docker.internal:6379` |
+
+> **Security Note:** `ADMIN_USER`, `ADMIN_PASS`, and `SESSION_SECRET` are **mandatory** in production mode. The container will refuse to start if they are not set.
+
+---
+
+#### Build Locally (Optional)
+
+If you prefer to build the image yourself:
+
+```bash
+git clone https://github.com/abublihi/tazyyef.git
+cd tazyyef
+docker build --no-cache -t tazyyef:local .
 ```
 
 ## Usage
@@ -309,6 +324,81 @@ npm run test:coverage   # With coverage report
 ## Redis Persistence
 
 Data is stored in Redis and persists across app restarts as long as Redis itself persists. Configure Redis persistence (RDB snapshots or AOF) in your `redis.conf` for durability. Traffic logs have a configurable TTL (`TRAFFIC_LOG_TTL_DAYS`, default 7 days).
+
+## Project Structure
+
+```
+tazyyef/
+├── admin/                          # React SPA (Vite + Tailwind)
+│   ├── components/                 #   UI components
+│   │   ├── Integrations/           #     Integration list, detail, forms
+│   │   ├── Scenarios/              #     Scenario list, detail, forms
+│   │   ├── Traffic/                #     Traffic log viewer
+│   │   ├── ui/                     #     Shared primitives (dialog, select, etc.)
+│   │   ├── Layout.jsx              #     App shell with sidebar navigation
+│   │   ├── LoginScreen.jsx         #     Login form
+│   │   ├── PostmanImportModal.jsx  #     Postman collection import UI
+│   │   ├── TestModal.jsx           #     Scenario testing panel
+│   │   ├── ConfirmDialog.jsx       #     Confirmation dialog
+│   │   └── ErrorBoundary.jsx       #     React error boundary
+│   ├── hooks/useAuth.js            #   Auth state hook
+│   ├── lib/api.js                  #   API client (axios)
+│   ├── lib/utils.js                #   Utility helpers
+│   ├── routes/index.jsx            #   TanStack Router configuration
+│   ├── schemas/                    #   Zod validation schemas
+│   ├── dist/                       #   Production build output
+│   ├── index.html
+│   └── main.jsx                    #   React entry point
+├── public/                         # Static assets (favicon, logo)
+├── src/
+│   ├── config/
+│   │   ├── env.js                  # Environment variable loader
+│   │   ├── redis.js                # Redis client setup (ioredis)
+│   │   └── sessionStore.js         # Redis-backed session store
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── importController.js     # Postman import handler
+│   │   ├── integrationController.js
+│   │   ├── mockController.js
+│   │   ├── scenarioController.js
+│   │   └── trafficController.js
+│   ├── middleware/
+│   │   ├── auth.js                 # Session authentication guard
+│   │   ├── logger.js               # HTTP request logging (Morgan)
+│   │   ├── rateLimiter.js          # Rate limiting (global + per-scenario)
+│   │   ├── trafficLogger.js        # Automatic traffic capture
+│   │   └── validator.js            # JSON field validation (Zod)
+│   ├── models/
+│   │   ├── Integration.js          # Integration data model (Redis)
+│   │   ├── Scenario.js             # Scenario data model (Redis)
+│   │   └── Traffic.js              # Traffic log data model (Redis)
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── integrations.js         # Integrations + Postman import routes
+│   │   ├── mock.js                 # Public mock API endpoint
+│   │   ├── scenarios.js
+│   │   └── traffic.js
+│   ├── services/
+│   │   ├── authService.js
+│   │   ├── integrationService.js
+│   │   ├── mockService.js          # Scenario matching engine
+│   │   ├── postmanImportService.js # Postman collection parser
+│   │   ├── scenarioService.js
+│   │   └── trafficService.js
+│   └── app.js                      # Express entry point
+├── tests/unit/
+│   ├── authService.test.js
+│   ├── mockService.test.js
+│   └── postmanImportService.test.js
+├── .env                            # Environment variables (committed for dev)
+├── .github/workflows/test.yml      # CI: test matrix (18, 20, 22)
+├── Dockerfile                      # Multi-stage production build
+├── jest.config.js
+├── nodemon.json                    # Dev auto-reload config
+├── vite.config.js                  # Vite config for admin SPA
+├── tailwind.config.cjs
+└── postcss.config.cjs
+```
 
 ## License
 
