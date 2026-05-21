@@ -2,7 +2,11 @@ const express = require("express");
 const router = express.Router();
 const ScenarioController = require("../controllers/scenarioController");
 const requireAuth = require("../middleware/auth");
-const { validateJsonField } = require("../middleware/validator");
+const {
+  validateBody,
+  scenarioCreateSchema,
+  scenarioUpdateSchema,
+} = require("../middleware/validator");
 
 // All scenario routes require admin authentication
 router.use(requireAuth);
@@ -10,9 +14,7 @@ router.use(requireAuth);
 // Scenarios scoped under an integration
 router.post(
   "/integrations/:integrationId/scenarios",
-  validateJsonField("headers"),
-  validateJsonField("queryParams"),
-  validateJsonField("bodyParams"),
+  validateBody(scenarioCreateSchema),
   ScenarioController.create
 );
 router.get("/integrations/:integrationId/scenarios", ScenarioController.list);
@@ -20,11 +22,10 @@ router.get("/integrations/:integrationId/scenarios", ScenarioController.list);
 // Individual scenario operations
 router.get("/scenarios", ScenarioController.listAll);
 router.get("/scenarios/:id", ScenarioController.getById);
+router.get("/scenarios/:id/traffic", ScenarioController.getTraffic);
 router.put(
   "/scenarios/:id",
-  validateJsonField("headers"),
-  validateJsonField("queryParams"),
-  validateJsonField("bodyParams"),
+  validateBody(scenarioUpdateSchema),
   ScenarioController.update
 );
 router.delete("/scenarios/:id", ScenarioController.delete);

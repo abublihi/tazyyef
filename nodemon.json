@@ -1,0 +1,5 @@
+{
+  "watch": ["src/"],
+  "ignore": ["admin/", "node_modules/", "public/"],
+  "ext": "js,json"
+}

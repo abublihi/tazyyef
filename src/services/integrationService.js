@@ -34,6 +34,12 @@ class IntegrationService {
     if (data.key !== undefined) {
       const trimmedKey = data.key.trim();
       if (!trimmedKey) throw new Error("Integration key cannot be empty");
+      if (trimmedKey !== existing.key) {
+        const conflict = await Integration.getByKey(trimmedKey);
+        if (conflict && conflict.id !== id) {
+          throw new Error("Integration key already exists");
+        }
+      }
       updates.key = trimmedKey;
     }
     return Integration.update(id, updates);

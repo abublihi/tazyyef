@@ -2,6 +2,7 @@ const redis = require("../config/redis");
 const { v4: uuidv4 } = require("uuid");
 
 const SCENARIO_PREFIX = "scenario:";
+const GLOBAL_INDEX_KEY = "scenarios:index";
 
 const validateEndpoint = (endpoint) => {
   if (!endpoint) return "/";
@@ -44,6 +45,7 @@ class Scenario {
     const multi = redis.multi();
     multi.hset(`${SCENARIO_PREFIX}${id}`, scenario);
     multi.sadd(scenarioIndexKey(integrationId), id);
+    multi.sadd(GLOBAL_INDEX_KEY, id);
     await multi.exec();
 
     return scenario;
@@ -126,6 +128,7 @@ class Scenario {
     const multi = redis.multi();
     multi.del(`${SCENARIO_PREFIX}${id}`);
     multi.srem(scenarioIndexKey(scenario.integrationId), id);
+    multi.srem(GLOBAL_INDEX_KEY, id);
     await multi.exec();
     return true;
   }
@@ -138,6 +141,7 @@ class Scenario {
     const multi = redis.multi();
     for (const id of ids) {
       multi.del(`${SCENARIO_PREFIX}${id}`);
+      multi.srem(GLOBAL_INDEX_KEY, id);
     }
     multi.del(scenarioIndexKey(integrationId));
     await multi.exec();
@@ -172,6 +176,7 @@ class Scenario {
 
       multi.hset(`${SCENARIO_PREFIX}${id}`, scenario);
       multi.sadd(scenarioIndexKey(integrationId), id);
+      multi.sadd(GLOBAL_INDEX_KEY, id);
       created.push(scenario);
     }
 
@@ -180,18 +185,17 @@ class Scenario {
   }
 
   static async listAll(search) {
-    const keys = await redis.keys(`${SCENARIO_PREFIX}*`);
-    const scenarios = await Promise.all(
-      keys.map((key) => redis.hgetall(key))
-    );
+    const ids = await redis.smembers(GLOBAL_INDEX_KEY);
+    const scenarios = await Promise.all(ids.map((id) => this.getById(id)));
     const results = scenarios.filter(Boolean);
     if (!search) return results;
     const term = search.toLowerCase();
-    return results.filter((s) =>
-      s.endpoint.toLowerCase().includes(term) ||
-      s.method.toLowerCase().includes(term) ||
-      s.responseCode.toString().includes(term) ||
-      (s.source && s.source.toLowerCase().includes(term))
+    return results.filter(
+      (s) =>
+        s.endpoint.toLowerCase().includes(term) ||
+        s.method.toLowerCase().includes(term) ||
+        s.responseCode.toString().includes(term) ||
+        (s.source && s.source.toLowerCase().includes(term))
     );
   }
 

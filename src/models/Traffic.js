@@ -1,9 +1,11 @@
 const redis = require("../config/redis");
 const { v4: uuidv4 } = require("uuid");
+const env = require("../config/env");
 
 const TRAFFIC_PREFIX = "traffic:";
 const TRAFFIC_INDEX = "traffic:index";
 const TRAFFIC_BY_INTEGRATION = "traffic:integration:";
+const TRAFFIC_TTL_SECONDS = env.trafficLogTtlDays * 24 * 60 * 60;
 
 class Traffic {
   static async log({ integrationKey, integrationId, method, path, headers, query, body, statusCode, responseTime, matchedScenarioId }) {
@@ -27,6 +29,7 @@ class Traffic {
 
     const multi = redis.multi();
     multi.hset(`${TRAFFIC_PREFIX}${id}`, entry);
+    multi.expire(`${TRAFFIC_PREFIX}${id}`, TRAFFIC_TTL_SECONDS);
     multi.zadd(TRAFFIC_INDEX, Date.now(), id);
     if (integrationId) {
       const key = `${TRAFFIC_BY_INTEGRATION}${integrationId}`;
@@ -42,12 +45,23 @@ class Traffic {
     const data = await redis.hgetall(`${TRAFFIC_PREFIX}${id}`);
     if (!data || !data.id) return null;
 
-    return {
+    const entry = {
       ...data,
       headers: JSON.parse(data.headers || "{}"),
       query: JSON.parse(data.query || "{}"),
       body: JSON.parse(data.body || "{}"),
     };
+
+    if (entry.matchedScenarioId) {
+      const Scenario = require("./Scenario");
+      const scenario = await Scenario.getById(entry.matchedScenarioId);
+      if (scenario) {
+        entry.scenarioMethod = scenario.method;
+        entry.scenarioEndpoint = scenario.endpoint;
+      }
+    }
+
+    return entry;
   }
 
   static async list({ limit = 50, offset = 0, integrationId } = {}) {
@@ -65,16 +79,7 @@ class Traffic {
     const page = reversed.slice(offset, offset + limit);
 
     const entries = await Promise.all(
-      page.map(async (id) => {
-        const data = await redis.hgetall(`${TRAFFIC_PREFIX}${id}`);
-        if (!data || !data.id) return null;
-        return {
-          ...data,
-          headers: JSON.parse(data.headers || "{}"),
-          query: JSON.parse(data.query || "{}"),
-          body: JSON.parse(data.body || "{}"),
-        };
-      })
+      page.map((id) => this.getById(id))
     );
 
     return entries.filter(Boolean);
@@ -99,6 +104,32 @@ class Traffic {
     }
     await multi.exec();
     return true;
+  }
+
+  static async listByScenario(scenarioId, { limit = 100, offset = 0 } = {}) {
+    // Fetch all traffic IDs (reverse chronological)
+    const ids = await redis.zrange(TRAFFIC_INDEX, "-inf", "+inf", "BYSCORE");
+    const reversed = ids.reverse();
+
+    // We need to filter by matchedScenarioId. Since there's no dedicated index,
+    // we scan entries and filter. For reasonable traffic volumes this is fine.
+    const entries = [];
+    let scanned = 0;
+    let matched = 0;
+
+    for (const id of reversed) {
+      const entry = await this.getById(id);
+      if (!entry) continue;
+      scanned++;
+      if (entry.matchedScenarioId === scenarioId) {
+        if (matched >= offset && entries.length < limit) {
+          entries.push(entry);
+        }
+        matched++;
+      }
+    }
+
+    return { entries, total: matched };
   }
 
   static async clear({ integrationId } = {}) {

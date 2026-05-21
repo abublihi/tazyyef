@@ -70,6 +70,20 @@ class ScenarioController {
       res.status(err.message === "Scenario not found" ? 404 : 500).json({ error: err.message });
     }
   }
+
+  // GET /api/admin/scenarios/:id/traffic
+  static async getTraffic(req, res) {
+    try {
+      const limit = parseInt(req.query.limit, 10) || 100;
+      const offset = parseInt(req.query.offset, 10) || 0;
+      await ScenarioService.getById(req.params.id); // ensure exists
+      const TrafficService = require("../services/trafficService");
+      const result = await TrafficService.listByScenario(req.params.id, { limit, offset });
+      res.json(result);
+    } catch (err) {
+      res.status(err.message === "Scenario not found" ? 404 : 500).json({ error: err.message });
+    }
+  }
 }
 
 module.exports = ScenarioController;

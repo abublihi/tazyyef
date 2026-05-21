@@ -1,7 +1,8 @@
 const express = require("express");
 const session = require("express-session");
-const cors = require("cors");
+const IoRedisSessionStore = require("./config/sessionStore");
 const path = require("path");
+const fs = require("fs");
 const env = require("./config/env");
 const logger = require("./middleware/logger");
 const trafficLogger = require("./middleware/trafficLogger");
@@ -18,79 +19,97 @@ const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-// Parse JSON and URL-encoded request bodies
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Enable CORS for admin panel (frontend may be served from a different origin)
-app.use(cors({ origin: true, credentials: true }));
-
-// HTTP request logging
 app.use(logger);
-
-// Traffic logging for mock API
 app.use(trafficLogger);
 
-// Session management backed by Redis for persistence across restarts
-const RedisStore = require("express-session").Store;
-
-// Simple in-memory store fallback; Redis store would need connect-redis package
-// For production, install connect-redis and use: new RedisStore({ client: redis })
 app.use(
   session({
+    store: new IoRedisSessionStore(redis),
     secret: env.sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // set to true in production with HTTPS
+      secure: false,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
     },
-  })
+  }),
 );
-
-// Serve static admin panel files
-app.use(express.static(path.join(__dirname, "..", "public")));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// Admin authentication
 app.use("/api/admin/auth", authRoutes);
-
-// Admin API — integrations, scenarios, and traffic (protected by auth middleware)
 app.use("/api/admin/integrations", integrationRoutes);
 app.use("/api/admin", scenarioRoutes);
 app.use("/api/admin/traffic", trafficRoutes);
-
-// Public mock API — no authentication required
 app.use("/mock", mockRoutes);
 
-// Serve admin panel for any non-API route
-app.get("*", (req, res) => {
-  if (!req.path.startsWith("/api") && !req.path.startsWith("/mock")) {
-    res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+// ─── Health Check ─────────────────────────────────────────────────────────────
+
+app.get("/health", async (req, res) => {
+  try {
+    await redis.ping();
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "error", message: "Redis unavailable" });
   }
 });
 
-// ─── Error Handling ───────────────────────────────────────────────────────────
+// ─── Frontend (Vite in dev, static in prod) ───────────────────────────────────
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: "Not found" });
-});
+const adminDist = path.join(__dirname, "..", "admin", "dist");
+const isDev = process.env.NODE_ENV !== "production";
+const useAdminBuild = fs.existsSync(path.join(adminDist, "index.html"));
 
-// Global error handler
-app.use((err, req, res, _next) => {
-  console.error("[Error]", err.stack);
-  res.status(500).json({ error: "Internal server error" });
-});
+async function setupFrontend() {
+  if (isDev) {
+    // In development: attach Vite middleware for HMR and fresh module resolution
+    const { createServer } = require("vite");
+    const vite = await createServer({
+      server: { middlewareMode: true },
+    });
+    app.use(vite.middlewares);
+  } else {
+    // In production: serve static build
+    app.use(express.static(adminDist));
 
-// ─── Start Server ─────────────────────────────────────────────────────────────
+    // SPA fallback for React Router
+    app.get("*", (req, res) => {
+      if (!req.path.startsWith("/api") && !req.path.startsWith("/mock")) {
+        res.sendFile(path.join(adminDist, "index.html"));
+      }
+    });
+  }
 
-app.listen(env.port, () => {
-  console.log(`[Server] Listening on http://localhost:${env.port}`);
-  console.log(`[Server] Admin panel: http://localhost:${env.port}`);
-  console.log(`[Server] Mock API base: http://localhost:${env.port}/mock/:integrationKey`);
+  // ─── Error Handling ───────────────────────────────────────────────────────────
+
+  app.use((req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+
+  app.use((err, req, res, _next) => {
+    console.error("[Error]", err.stack);
+    res.status(500).json({ error: "Internal server error" });
+  });
+
+  // ─── Start Server ─────────────────────────────────────────────────────────────
+
+  app.listen(env.port, () => {
+    console.log(`[Server] Listening on http://localhost:${env.port}`);
+    console.log(`[Server] Admin panel: http://localhost:${env.port}`);
+    console.log(
+      `[Server] Mock API base: http://localhost:${env.port}/mock/:integrationKey`,
+    );
+  });
+}
+
+setupFrontend().catch((err) => {
+  console.error("[Error] Failed to setup frontend:", err);
+  process.exit(1);
 });
 
 module.exports = app;

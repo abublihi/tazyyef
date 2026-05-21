@@ -21,6 +21,10 @@ class TrafficService {
     return true;
   }
 
+  static async listByScenario(scenarioId, { limit = 100, offset = 0 } = {}) {
+    return Traffic.listByScenario(scenarioId, { limit, offset });
+  }
+
   static async clear({ integrationId } = {}) {
     return Traffic.clear({ integrationId });
   }
