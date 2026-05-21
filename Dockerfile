@@ -1,7 +1,7 @@
 # ==========================================
 # Stage 1: Production dependencies
 # ==========================================
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
@@ -9,7 +9,7 @@ RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 # ==========================================
 # Stage 2: Production runtime
 # ==========================================
-FROM node:18-alpine AS runtime
+FROM node:20-alpine AS runtime
 ARG PORT=3000
 ENV PORT=${PORT}
 ENV NODE_ENV=production
