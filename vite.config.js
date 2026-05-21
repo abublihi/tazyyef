@@ -8,6 +8,9 @@ export default defineConfig({
   root: resolve(__dirname, 'admin'),
   publicDir: resolve(__dirname, 'public'),
   plugins: [react()],
+  esbuild: {
+    jsx: 'automatic',
+  },
   build: {
     outDir: 'dist',
   },

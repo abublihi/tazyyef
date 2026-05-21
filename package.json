@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "build:admin": "vite build admin"
+    "build:admin": "vite build --config vite.config.js admin"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
