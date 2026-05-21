@@ -4,6 +4,7 @@ import { integrations } from "../../lib/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Plus, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import IntegrationList from "./IntegrationList";
 import IntegrationForm from "./IntegrationForm";
 
@@ -22,6 +23,12 @@ export default function IntegrationsPage() {
     mutationFn: integrations.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setFormOpen(false);
+      setEditing(null);
+      toast.success("Integration created");
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
 
@@ -29,8 +36,22 @@ export default function IntegrationsPage() {
     mutationFn: ({ id, ...data }) => integrations.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setFormOpen(false);
+      setEditing(null);
+      toast.success("Integration updated");
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
+
+  function handleSubmit(data) {
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, ...data });
+    } else {
+      createMutation.mutate(data);
+    }
+  }
 
   function handleNew() {
     setEditing(null);
@@ -40,15 +61,6 @@ export default function IntegrationsPage() {
   function handleEdit(integration) {
     setEditing(integration);
     setFormOpen(true);
-  }
-
-  function handleSubmit(data) {
-    if (editing) {
-      updateMutation.mutate({ id: editing.id, ...data });
-    } else {
-      createMutation.mutate(data);
-    }
-    setFormOpen(false);
   }
 
   const count = data?.length ?? 0;

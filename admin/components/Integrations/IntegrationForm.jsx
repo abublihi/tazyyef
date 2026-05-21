@@ -58,7 +58,6 @@ export default function IntegrationForm({ open, onOpenChange, integration, onSub
       payload.key = data.key.trim();
     }
     onSubmit(payload);
-    reset();
   }
 
   return (

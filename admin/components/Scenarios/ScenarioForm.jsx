@@ -164,7 +164,6 @@ export default function ScenarioForm({
 
   function handleFormSubmit(data) {
     onSubmit(data);
-    reset();
   }
 
   return (
@@ -265,6 +264,11 @@ export default function ScenarioForm({
                 type="number"
                 min="100"
                 max="599"
+                onKeyDown={(e) => {
+                  if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                    e.preventDefault();
+                  }
+                }}
                 {...register("responseCode")}
               />
             </div>
@@ -275,6 +279,11 @@ export default function ScenarioForm({
                 type="number"
                 min="1"
                 placeholder="50"
+                onKeyDown={(e) => {
+                  if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                    e.preventDefault();
+                  }
+                }}
                 {...register("rateLimit")}
               />
             </div>
@@ -285,6 +294,11 @@ export default function ScenarioForm({
                 type="number"
                 min="1000"
                 placeholder="60000"
+                onKeyDown={(e) => {
+                  if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                    e.preventDefault();
+                  }
+                }}
                 {...register("rateWindow")}
               />
             </div>

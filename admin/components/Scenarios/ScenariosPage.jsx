@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Plus, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import ScenarioList from "./ScenarioList";
 import ScenarioForm from "./ScenarioForm";
 
@@ -40,6 +41,12 @@ export default function ScenariosPage() {
       scenarios.create(integrationId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+      setFormOpen(false);
+      setEditing(null);
+      toast.success("Scenario created");
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
 
@@ -47,8 +54,22 @@ export default function ScenariosPage() {
     mutationFn: ({ id, ...data }) => scenarios.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+      setFormOpen(false);
+      setEditing(null);
+      toast.success("Scenario updated");
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
+
+  function handleSubmit(data) {
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, ...data });
+    } else {
+      createMutation.mutate(data);
+    }
+  }
 
   function handleNew() {
     setEditing(null);
@@ -58,15 +79,6 @@ export default function ScenariosPage() {
   function handleEdit(scenario) {
     setEditing(scenario);
     setFormOpen(true);
-  }
-
-  function handleSubmit(data) {
-    if (editing) {
-      updateMutation.mutate({ id: editing.id, ...data });
-    } else {
-      createMutation.mutate(data);
-    }
-    setFormOpen(false);
   }
 
   return (
