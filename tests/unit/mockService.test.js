@@ -50,21 +50,21 @@ describe("MockService", () => {
 
       expect(result).toBeNull();
       expect(Integration.getByKey).toHaveBeenCalledWith("invalid-key");
-      expect(Scenario.listByIntegration).not.toHaveBeenCalled();
+      expect(Scenario.listByRoute).not.toHaveBeenCalled();
     });
 
     it("returns null when no scenarios exist for integration", async () => {
-      Scenario.listByIntegration.mockResolvedValue([]);
+      Scenario.listByRoute.mockResolvedValue([]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/users", "GET", {}, {}, {});
 
       expect(result).toBeNull();
-      expect(Scenario.listByIntegration).toHaveBeenCalledWith(integrationId);
+      expect(Scenario.listByRoute).toHaveBeenCalledWith(integrationId, "GET", "/api/users");
     });
 
     it("matches a simple scenario with exact method and endpoint", async () => {
       const scenario = createScenario({ id: "1" });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/users", "GET", {}, {}, {});
 
@@ -76,7 +76,7 @@ describe("MockService", () => {
 
     it("is case-insensitive for method matching (converts to uppercase)", async () => {
       const scenario = createScenario({ id: "1", method: "POST" });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/users", "post", {}, {}, {});
 
@@ -85,8 +85,8 @@ describe("MockService", () => {
     });
 
     it("does not match when method differs", async () => {
-      const scenario = createScenario({ id: "1", method: "GET" });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      // listByRoute filters by method+endpoint, so POST returns empty when only GET exists
+      Scenario.listByRoute.mockResolvedValue([]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/users", "POST", {}, {}, {});
 
@@ -94,8 +94,8 @@ describe("MockService", () => {
     });
 
     it("does not match when endpoint differs", async () => {
-      const scenario = createScenario({ id: "1", endpoint: "/api/users" });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      // listByRoute filters by method+endpoint, so different endpoint returns empty
+      Scenario.listByRoute.mockResolvedValue([]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/products", "GET", {}, {}, {});
 
@@ -107,7 +107,7 @@ describe("MockService", () => {
         id: "1",
         headers: { "content-type": "application/json" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -126,7 +126,7 @@ describe("MockService", () => {
         id: "1",
         headers: { "content-type": "application/json" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -145,7 +145,7 @@ describe("MockService", () => {
         id: "1",
         queryParams: { page: "1", limit: "10" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -164,7 +164,7 @@ describe("MockService", () => {
         id: "1",
         queryParams: { page: "1" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -184,7 +184,7 @@ describe("MockService", () => {
         method: "POST",
         bodyParams: { name: "John", age: "30" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -204,7 +204,7 @@ describe("MockService", () => {
         method: "GET",
         bodyParams: { name: "John" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -225,7 +225,7 @@ describe("MockService", () => {
         method: "POST",
         bodyParams: { name: "John" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -245,7 +245,7 @@ describe("MockService", () => {
         method: "POST",
         bodyParams: { age: "30" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       // Pass age as a number - should still match because of String() coercion
       const result = await MockService.matchScenario(
@@ -275,7 +275,7 @@ describe("MockService", () => {
         queryParams: { version: "v1" },
       });
 
-      Scenario.listByIntegration.mockResolvedValue([genericScenario, specificScenario]);
+      Scenario.listByRoute.mockResolvedValue([genericScenario, specificScenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -305,7 +305,7 @@ describe("MockService", () => {
         queryParams: { version: "v1" },
       });
 
-      Scenario.listByIntegration.mockResolvedValue([genericScenario, specificScenario]);
+      Scenario.listByRoute.mockResolvedValue([genericScenario, specificScenario]);
 
       // Only one of two criteria matches for specific - so it should not be eligible
       const result = await MockService.matchScenario(
@@ -327,7 +327,7 @@ describe("MockService", () => {
         rateLimit: "100",
         rateWindow: "60000",
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/users", "GET", {}, {}, {});
 
@@ -338,7 +338,7 @@ describe("MockService", () => {
 
     it("returns null rate limit when not set", async () => {
       const scenario = createScenario({ id: "1", rateLimit: null, rateWindow: null });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(integrationKey, "/api/users", "GET", {}, {}, {});
 
@@ -352,7 +352,7 @@ describe("MockService", () => {
         id: "1",
         headers: { "X-Custom-Header": "value" },
       });
-      Scenario.listByIntegration.mockResolvedValue([scenario]);
+      Scenario.listByRoute.mockResolvedValue([scenario]);
 
       const result = await MockService.matchScenario(
         integrationKey,
@@ -370,7 +370,7 @@ describe("MockService", () => {
       const scenario1 = createScenario({ id: "1", queryParams: { a: "1" } });
       const scenario2 = createScenario({ id: "2", queryParams: { b: "2" } });
 
-      Scenario.listByIntegration.mockResolvedValue([scenario1, scenario2]);
+      Scenario.listByRoute.mockResolvedValue([scenario1, scenario2]);
 
       // Only scenario1's criteria match
       const result = await MockService.matchScenario(
@@ -398,7 +398,7 @@ describe("MockService", () => {
         bodyParams: { status: "inactive" },
       });
 
-      Scenario.listByIntegration.mockResolvedValue([putScenario, patchScenario]);
+      Scenario.listByRoute.mockResolvedValue([putScenario, patchScenario]);
 
       const putResult = await MockService.matchScenario(
         integrationKey,
