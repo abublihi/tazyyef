@@ -19,6 +19,10 @@ function scenarioIndexKey(integrationId) {
   return `integration:${integrationId}:scenarios:index`;
 }
 
+function routeIndexKey(integrationId, method, endpoint) {
+  return `integration:${integrationId}:scenarios:route:${method.toUpperCase()}:${endpoint}`;
+}
+
 class Scenario {
   // Create a new scenario for an integration
   static async create(integrationId, data) {
@@ -46,6 +50,7 @@ class Scenario {
     multi.hset(`${SCENARIO_PREFIX}${id}`, scenario);
     multi.sadd(scenarioIndexKey(integrationId), id);
     multi.sadd(GLOBAL_INDEX_KEY, id);
+    multi.sadd(routeIndexKey(integrationId, scenario.method, scenario.endpoint), id);
     await multi.exec();
 
     return scenario;
@@ -61,6 +66,17 @@ class Scenario {
   // List all scenarios for a given integration
   static async listByIntegration(integrationId) {
     const ids = await redis.smembers(scenarioIndexKey(integrationId));
+    const scenarios = await Promise.all(
+      ids.map((id) => this.getById(id))
+    );
+    return scenarios.filter(Boolean);
+  }
+
+  // List scenarios for a specific integration, method, and endpoint
+  static async listByRoute(integrationId, method, endpoint) {
+    const ids = await redis.smembers(
+      routeIndexKey(integrationId, method, endpoint)
+    );
     const scenarios = await Promise.all(
       ids.map((id) => this.getById(id))
     );
@@ -116,7 +132,25 @@ class Scenario {
       updatedAt: new Date().toISOString(),
     };
 
-    await redis.hset(`${SCENARIO_PREFIX}${id}`, updated);
+    const multi = redis.multi();
+    multi.hset(`${SCENARIO_PREFIX}${id}`, updated);
+
+    // If method or endpoint changed, update route index
+    if (
+      updated.method !== existing.method ||
+      updated.endpoint !== existing.endpoint
+    ) {
+      multi.srem(
+        routeIndexKey(existing.integrationId, existing.method, existing.endpoint),
+        id
+      );
+      multi.sadd(
+        routeIndexKey(updated.integrationId, updated.method, updated.endpoint),
+        id
+      );
+    }
+
+    await multi.exec();
     return updated;
   }
 
@@ -129,6 +163,10 @@ class Scenario {
     multi.del(`${SCENARIO_PREFIX}${id}`);
     multi.srem(scenarioIndexKey(scenario.integrationId), id);
     multi.srem(GLOBAL_INDEX_KEY, id);
+    multi.srem(
+      routeIndexKey(scenario.integrationId, scenario.method, scenario.endpoint),
+      id
+    );
     await multi.exec();
     return true;
   }
@@ -138,10 +176,21 @@ class Scenario {
     const ids = await redis.smembers(scenarioIndexKey(integrationId));
     if (ids.length === 0) return;
 
+    const scenarios = await Promise.all(
+      ids.map((id) => this.getById(id))
+    );
+
     const multi = redis.multi();
     for (const id of ids) {
       multi.del(`${SCENARIO_PREFIX}${id}`);
       multi.srem(GLOBAL_INDEX_KEY, id);
+    }
+    for (const s of scenarios) {
+      if (s) {
+        multi.del(
+          routeIndexKey(integrationId, s.method, s.endpoint)
+        );
+      }
     }
     multi.del(scenarioIndexKey(integrationId));
     await multi.exec();
@@ -177,6 +226,7 @@ class Scenario {
       multi.hset(`${SCENARIO_PREFIX}${id}`, scenario);
       multi.sadd(scenarioIndexKey(integrationId), id);
       multi.sadd(GLOBAL_INDEX_KEY, id);
+      multi.sadd(routeIndexKey(integrationId, scenario.method, scenario.endpoint), id);
       created.push(scenario);
     }
 

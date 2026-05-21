@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    container_name: api-mock-app
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3000}
+      - REDIS_URL=redis://redis:6379
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-admin}
+      - SESSION_SECRET=${SESSION_SECRET:-change-this-to-a-random-string}
+      - MOCK_RATE_LIMIT=${MOCK_RATE_LIMIT:-100}
+      - MOCK_RATE_WINDOW_MS=${MOCK_RATE_WINDOW_MS:-60000}
+      - DEFAULT_SCENARIO_RATE_LIMIT=${DEFAULT_SCENARIO_RATE_LIMIT:-50}
+      - DEFAULT_SCENARIO_RATE_WINDOW_MS=${DEFAULT_SCENARIO_RATE_WINDOW_MS:-60000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - api-mock-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:$${PORT}/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: api-mock-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - api-mock-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+networks:
+  api-mock-network:
+    driver: bridge
+
+volumes:
+  redis-data:

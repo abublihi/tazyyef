@@ -2,6 +2,7 @@ module.exports = {
   testEnvironment: "node",
   roots: ["<rootDir>/tests"],
   testMatch: ["**/*.test.js"],
+  testPathIgnorePatterns: ["/integration/"],
   moduleNameMapper: {
     "^ioredis$": "<rootDir>/__mocks__/ioredis.js",
   },

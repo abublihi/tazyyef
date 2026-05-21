@@ -20,3 +20,18 @@ pids
 .env
 .env.local
 .env.*.local
+
+# Test files
+tests/
+__mocks__/
+jest.config.js
+
+# Development tools
+nodemon.json
+
+# Project metadata
+README.md
+.github/
+
+# Media/assets
+*.gif

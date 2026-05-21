@@ -16,10 +16,10 @@ class MockService {
     const integration = await Integration.getByKey(integrationKey);
     if (!integration) return null;
 
-    const scenarios = await Scenario.listByIntegration(integration.id);
-    if (!scenarios.length) return null;
-
     const reqMethod = method.toUpperCase();
+
+    const scenarios = await Scenario.listByRoute(integration.id, reqMethod, endpoint);
+    if (!scenarios.length) return null;
 
     let bestMatch = null;
     let bestScore = -1;
@@ -31,10 +31,6 @@ class MockService {
         queryParams: JSON.parse(raw.queryParams || "{}"),
         bodyParams: JSON.parse(raw.bodyParams || "{}"),
       };
-
-      // Method and endpoint must match exactly
-      if (scenario.method !== reqMethod) continue;
-      if (scenario.endpoint !== endpoint) continue;
 
       // Count total criteria and matched criteria
       let totalCriteria = 0;

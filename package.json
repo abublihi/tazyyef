@@ -9,7 +9,8 @@
     "build:admin": "vite build --config vite.config.js admin",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --config jest.integration.config.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
