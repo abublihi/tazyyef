@@ -6,10 +6,7 @@ API Mocking
 
 A full-stack API mocking application with a React admin panel, Redis-backed storage, intelligent scenario matching, and Postman collection import support.
 
-<video width="640" height="480" controls>
-  <source src="https://raw.githubusercontent.com/abublihi/tazyyef/main/demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Demo](./demo.gif)
 
 
 ## Purpose
