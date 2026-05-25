@@ -1,11 +1,11 @@
 const Traffic = require("../models/Traffic");
 
 class TrafficService {
-  static async list({ limit = 50, offset = 0, integrationId } = {}) {
+  static list({ limit = 50, offset = 0, integrationId } = {}) {
     return Traffic.list({ limit, offset, integrationId });
   }
 
-  static async count({ integrationId } = {}) {
+  static count({ integrationId } = {}) {
     return Traffic.count({ integrationId });
   }
 
@@ -21,11 +21,11 @@ class TrafficService {
     return true;
   }
 
-  static async listByScenario(scenarioId, { limit = 100, offset = 0 } = {}) {
+  static listByScenario(scenarioId, { limit = 100, offset = 0 } = {}) {
     return Traffic.listByScenario(scenarioId, { limit, offset });
   }
 
-  static async clear({ integrationId } = {}) {
+  static clear({ integrationId } = {}) {
     return Traffic.clear({ integrationId });
   }
 }

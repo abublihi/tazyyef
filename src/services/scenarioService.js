@@ -1,39 +1,29 @@
 const Scenario = require("../models/Scenario");
 const Integration = require("../models/Integration");
 
-const VALID_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
-
-const validateEndpoint = (endpoint) => {
-  if (!endpoint) throw new Error("Endpoint is required");
-  if (/^https?:\/\//i.test(endpoint)) {
-    throw new Error("Endpoint must be a path starting with /. Full URLs are not allowed.");
-  }
-  if (!endpoint.startsWith("/")) {
-    throw new Error("Endpoint must start with /");
-  }
-};
+const VALID_METHODS = new Set(["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]);
 
 class ScenarioService {
   static async create(integrationId, data) {
     const integration = await Integration.getById(integrationId);
     if (!integration) throw new Error("Integration not found");
 
-    validateEndpoint(data.endpoint);
     if (!data.method) throw new Error("HTTP method is required");
-    if (!VALID_METHODS.includes(data.method.toUpperCase())) {
-      throw new Error(`Invalid HTTP method. Must be one of: ${VALID_METHODS.join(", ")}`);
+    const method = data.method.toUpperCase();
+    if (!VALID_METHODS.has(method)) {
+      throw new Error(`Invalid HTTP method. Must be one of: ${[...VALID_METHODS].join(", ")}`);
     }
 
     return Scenario.create(integrationId, {
       endpoint: data.endpoint,
-      method: data.method.toUpperCase(),
-      headers: data.headers || {},
-      queryParams: data.queryParams || {},
-      bodyParams: data.bodyParams || {},
-      responseCode: data.responseCode || 200,
-      responseBody: data.responseBody || "{}",
-      rateLimit: data.rateLimit || null,
-      rateWindow: data.rateWindow || null,
+      method,
+      headers: data.headers ?? {},
+      queryParams: data.queryParams ?? {},
+      bodyParams: data.bodyParams ?? {},
+      responseCode: data.responseCode ?? 200,
+      responseBody: data.responseBody ?? "{}",
+      rateLimit: data.rateLimit ?? null,
+      rateWindow: data.rateWindow ?? null,
     });
   }
 
@@ -54,32 +44,35 @@ class ScenarioService {
   }
 
   static async update(id, data) {
-    const existing = await this.getById(id);
+    await this.getById(id);
 
-    if (data.endpoint !== undefined) {
-      validateEndpoint(data.endpoint);
+    const method = data.method?.toUpperCase();
+    if (method && !VALID_METHODS.has(method)) {
+      throw new Error(`Invalid HTTP method. Must be one of: ${[...VALID_METHODS].join(", ")}`);
     }
 
-    if (data.method && !VALID_METHODS.includes(data.method.toUpperCase())) {
-      throw new Error(`Invalid HTTP method. Must be one of: ${VALID_METHODS.join(", ")}`);
-    }
+    const pickDefined = (obj, keys) =>
+      Object.fromEntries(keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
 
-    const updates = {};
-    if (data.endpoint !== undefined) updates.endpoint = data.endpoint;
-    if (data.method !== undefined) updates.method = data.method.toUpperCase();
-    if (data.headers !== undefined) updates.headers = data.headers;
-    if (data.queryParams !== undefined) updates.queryParams = data.queryParams;
-    if (data.bodyParams !== undefined) updates.bodyParams = data.bodyParams;
-    if (data.responseCode !== undefined) updates.responseCode = data.responseCode;
-    if (data.responseBody !== undefined) updates.responseBody = data.responseBody;
-    if (data.rateLimit !== undefined) updates.rateLimit = data.rateLimit;
-    if (data.rateWindow !== undefined) updates.rateWindow = data.rateWindow;
+    const updates = pickDefined(data, [
+      "endpoint",
+      "method",
+      "headers",
+      "queryParams",
+      "bodyParams",
+      "responseCode",
+      "responseBody",
+      "rateLimit",
+      "rateWindow",
+    ]);
+
+    if (updates.method) updates.method = updates.method.toUpperCase();
 
     return Scenario.update(id, updates);
   }
 
   static async delete(id) {
-    await this.getById(id); // throws if not found
+    await this.getById(id);
     return Scenario.delete(id);
   }
 }

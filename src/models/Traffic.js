@@ -23,7 +23,7 @@ class Traffic {
       body: JSON.stringify(body),
       statusCode,
       responseTime,
-      matchedScenarioId: matchedScenarioId || "",
+      matchedScenarioId: matchedScenarioId ?? "",
       timestamp,
     };
 
@@ -33,7 +33,6 @@ class Traffic {
     multi.zadd(TRAFFIC_INDEX, Date.now(), id);
     if (integrationId) {
       const key = `${TRAFFIC_BY_INTEGRATION}${integrationId}`;
-      console.log(`[Traffic] Adding to integration set: ${key}`);
       multi.zadd(key, Date.now(), id);
     }
     await multi.exec();
@@ -43,13 +42,13 @@ class Traffic {
 
   static async getById(id) {
     const data = await redis.hgetall(`${TRAFFIC_PREFIX}${id}`);
-    if (!data || !data.id) return null;
+    if (!data?.id) return null;
 
     const entry = {
       ...data,
-      headers: JSON.parse(data.headers || "{}"),
-      query: JSON.parse(data.query || "{}"),
-      body: JSON.parse(data.body || "{}"),
+      headers: JSON.parse(data.headers ?? "{}"),
+      query: JSON.parse(data.query ?? "{}"),
+      body: JSON.parse(data.body ?? "{}"),
     };
 
     if (entry.matchedScenarioId) {
@@ -65,31 +64,15 @@ class Traffic {
   }
 
   static async list({ limit = 50, offset = 0, integrationId } = {}) {
-    let ids;
-    if (integrationId) {
-      const key = `${TRAFFIC_BY_INTEGRATION}${integrationId}`;
-      console.log(`[Traffic] Listing from integration set: ${key}`);
-      ids = await redis.zrange(key, "-inf", "+inf", "BYSCORE");
-      console.log(`[Traffic] Found ${ids.length} entries`);
-    } else {
-      ids = await redis.zrange(TRAFFIC_INDEX, "-inf", "+inf", "BYSCORE");
-    }
-
-    const reversed = ids.reverse();
-    const page = reversed.slice(offset, offset + limit);
-
-    const entries = await Promise.all(
-      page.map((id) => this.getById(id))
-    );
-
+    const key = integrationId ? `${TRAFFIC_BY_INTEGRATION}${integrationId}` : TRAFFIC_INDEX;
+    const ids = await redis.zrange(key, "-inf", "+inf", "BYSCORE");
+    const page = ids.reverse().slice(offset, offset + limit);
+    const entries = await Promise.all(page.map((id) => this.getById(id)));
     return entries.filter(Boolean);
   }
 
   static async count({ integrationId } = {}) {
-    if (integrationId) {
-      return redis.zcard(`${TRAFFIC_BY_INTEGRATION}${integrationId}`);
-    }
-    return redis.zcard(TRAFFIC_INDEX);
+    return redis.zcard(integrationId ? `${TRAFFIC_BY_INTEGRATION}${integrationId}` : TRAFFIC_INDEX);
   }
 
   static async delete(id) {
@@ -107,20 +90,15 @@ class Traffic {
   }
 
   static async listByScenario(scenarioId, { limit = 100, offset = 0 } = {}) {
-    // Fetch all traffic IDs (reverse chronological)
     const ids = await redis.zrange(TRAFFIC_INDEX, "-inf", "+inf", "BYSCORE");
     const reversed = ids.reverse();
 
-    // We need to filter by matchedScenarioId. Since there's no dedicated index,
-    // we scan entries and filter. For reasonable traffic volumes this is fine.
     const entries = [];
-    let scanned = 0;
     let matched = 0;
 
     for (const id of reversed) {
       const entry = await this.getById(id);
       if (!entry) continue;
-      scanned++;
       if (entry.matchedScenarioId === scenarioId) {
         if (matched >= offset && entries.length < limit) {
           entries.push(entry);
