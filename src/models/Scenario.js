@@ -15,16 +15,11 @@ const validateEndpoint = (endpoint) => {
   return endpoint;
 };
 
-function scenarioIndexKey(integrationId) {
-  return `integration:${integrationId}:scenarios:index`;
-}
-
-function routeIndexKey(integrationId, method, endpoint) {
-  return `integration:${integrationId}:scenarios:route:${method.toUpperCase()}:${endpoint}`;
-}
+const scenarioIndexKey = (integrationId) => `integration:${integrationId}:scenarios:index`;
+const routeIndexKey = (integrationId, method, endpoint) =>
+  `integration:${integrationId}:scenarios:route:${method.toUpperCase()}:${endpoint}`;
 
 class Scenario {
-  // Create a new scenario for an integration
   static async create(integrationId, data) {
     const id = uuidv4();
     const endpoint = validateEndpoint(data.endpoint);
@@ -32,15 +27,15 @@ class Scenario {
       id,
       integrationId,
       endpoint,
-      method: (data.method || "GET").toUpperCase(),
-      headers: JSON.stringify(data.headers || {}),
-      queryParams: JSON.stringify(data.queryParams || {}),
-      bodyParams: JSON.stringify(data.bodyParams || {}),
+      method: (data.method ?? "GET").toUpperCase(),
+      headers: JSON.stringify(data.headers ?? {}),
+      queryParams: JSON.stringify(data.queryParams ?? {}),
+      bodyParams: JSON.stringify(data.bodyParams ?? {}),
       responseCode: parseInt(data.responseCode, 10) || 200,
-      responseBody: data.responseBody || "{}",
+      responseBody: data.responseBody ?? "{}",
       rateLimit: parseInt(data.rateLimit, 10) || null,
       rateWindow: parseInt(data.rateWindow, 10) || null,
-      source: data.source || "manual",
+      source: data.source ?? "manual",
       importMetadata: data.importMetadata ? JSON.stringify(data.importMetadata) : "{}",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -56,34 +51,23 @@ class Scenario {
     return scenario;
   }
 
-  // Fetch a single scenario by ID
   static async getById(id) {
     const data = await redis.hgetall(`${SCENARIO_PREFIX}${id}`);
-    if (!data || !data.id) return null;
-    return data;
+    return data?.id ? data : null;
   }
 
-  // List all scenarios for a given integration
   static async listByIntegration(integrationId) {
     const ids = await redis.smembers(scenarioIndexKey(integrationId));
-    const scenarios = await Promise.all(
-      ids.map((id) => this.getById(id))
-    );
+    const scenarios = await Promise.all(ids.map((id) => this.getById(id)));
     return scenarios.filter(Boolean);
   }
 
-  // List scenarios for a specific integration, method, and endpoint
   static async listByRoute(integrationId, method, endpoint) {
-    const ids = await redis.smembers(
-      routeIndexKey(integrationId, method, endpoint)
-    );
-    const scenarios = await Promise.all(
-      ids.map((id) => this.getById(id))
-    );
+    const ids = await redis.smembers(routeIndexKey(integrationId, method, endpoint));
+    const scenarios = await Promise.all(ids.map((id) => this.getById(id)));
     return scenarios.filter(Boolean);
   }
 
-  // Update scenario fields
   static async update(id, fields) {
     const existing = await this.getById(id);
     if (!existing) return null;
@@ -92,7 +76,6 @@ class Scenario {
       fields.endpoint = validateEndpoint(fields.endpoint);
     }
 
-    // Parse JSON fields for merging, then re-stringify
     const parsed = {
       ...existing,
       headers: JSON.parse(existing.headers),
@@ -100,22 +83,11 @@ class Scenario {
       bodyParams: JSON.parse(existing.bodyParams),
     };
 
-    // Merge incoming fields — JSON fields come as strings from the API
     const merged = { ...parsed };
-    if (fields.headers !== undefined) {
-      merged.headers = typeof fields.headers === "string"
-        ? JSON.parse(fields.headers)
-        : fields.headers;
-    }
-    if (fields.queryParams !== undefined) {
-      merged.queryParams = typeof fields.queryParams === "string"
-        ? JSON.parse(fields.queryParams)
-        : fields.queryParams;
-    }
-    if (fields.bodyParams !== undefined) {
-      merged.bodyParams = typeof fields.bodyParams === "string"
-        ? JSON.parse(fields.bodyParams)
-        : fields.bodyParams;
+    for (const key of ["headers", "queryParams", "bodyParams"]) {
+      if (fields[key] !== undefined) {
+        merged[key] = typeof fields[key] === "string" ? JSON.parse(fields[key]) : fields[key];
+      }
     }
 
     const updated = {
@@ -135,26 +107,15 @@ class Scenario {
     const multi = redis.multi();
     multi.hset(`${SCENARIO_PREFIX}${id}`, updated);
 
-    // If method or endpoint changed, update route index
-    if (
-      updated.method !== existing.method ||
-      updated.endpoint !== existing.endpoint
-    ) {
-      multi.srem(
-        routeIndexKey(existing.integrationId, existing.method, existing.endpoint),
-        id
-      );
-      multi.sadd(
-        routeIndexKey(updated.integrationId, updated.method, updated.endpoint),
-        id
-      );
+    if (updated.method !== existing.method || updated.endpoint !== existing.endpoint) {
+      multi.srem(routeIndexKey(existing.integrationId, existing.method, existing.endpoint), id);
+      multi.sadd(routeIndexKey(updated.integrationId, updated.method, updated.endpoint), id);
     }
 
     await multi.exec();
     return updated;
   }
 
-  // Delete a single scenario
   static async delete(id) {
     const scenario = await this.getById(id);
     if (!scenario) return false;
@@ -163,22 +124,16 @@ class Scenario {
     multi.del(`${SCENARIO_PREFIX}${id}`);
     multi.srem(scenarioIndexKey(scenario.integrationId), id);
     multi.srem(GLOBAL_INDEX_KEY, id);
-    multi.srem(
-      routeIndexKey(scenario.integrationId, scenario.method, scenario.endpoint),
-      id
-    );
+    multi.srem(routeIndexKey(scenario.integrationId, scenario.method, scenario.endpoint), id);
     await multi.exec();
     return true;
   }
 
-  // Delete all scenarios for an integration (used when deleting the integration)
   static async deleteAllForIntegration(integrationId) {
     const ids = await redis.smembers(scenarioIndexKey(integrationId));
-    if (ids.length === 0) return;
+    if (!ids.length) return;
 
-    const scenarios = await Promise.all(
-      ids.map((id) => this.getById(id))
-    );
+    const scenarios = await Promise.all(ids.map((id) => this.getById(id)));
 
     const multi = redis.multi();
     for (const id of ids) {
@@ -187,9 +142,7 @@ class Scenario {
     }
     for (const s of scenarios) {
       if (s) {
-        multi.del(
-          routeIndexKey(integrationId, s.method, s.endpoint)
-        );
+        multi.del(routeIndexKey(integrationId, s.method, s.endpoint));
       }
     }
     multi.del(scenarioIndexKey(integrationId));
@@ -209,15 +162,15 @@ class Scenario {
         id,
         integrationId,
         endpoint,
-        method: (data.method || "GET").toUpperCase(),
-        headers: JSON.stringify(data.headers || {}),
-        queryParams: JSON.stringify(data.queryParams || {}),
-        bodyParams: JSON.stringify(data.bodyParams || {}),
+        method: (data.method ?? "GET").toUpperCase(),
+        headers: JSON.stringify(data.headers ?? {}),
+        queryParams: JSON.stringify(data.queryParams ?? {}),
+        bodyParams: JSON.stringify(data.bodyParams ?? {}),
         responseCode: parseInt(data.responseCode, 10) || 200,
-        responseBody: data.responseBody || "{}",
+        responseBody: data.responseBody ?? "{}",
         rateLimit: data.rateLimit ? parseInt(data.rateLimit, 10) : null,
         rateWindow: data.rateWindow ? parseInt(data.rateWindow, 10) : null,
-        source: data.source || "manual",
+        source: data.source ?? "manual",
         importMetadata: data.importMetadata ? JSON.stringify(data.importMetadata) : "{}",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -238,42 +191,36 @@ class Scenario {
     const ids = await redis.smembers(GLOBAL_INDEX_KEY);
     const scenarios = await Promise.all(ids.map((id) => this.getById(id)));
     const results = scenarios.filter(Boolean);
+
     if (!search) return results;
+
     const term = search.toLowerCase();
-    return results.filter(
-      (s) =>
-        s.endpoint.toLowerCase().includes(term) ||
-        s.method.toLowerCase().includes(term) ||
-        s.responseCode.toString().includes(term) ||
-        (s.source && s.source.toLowerCase().includes(term))
+    return results.filter((s) =>
+      s.endpoint.toLowerCase().includes(term) ||
+      s.method.toLowerCase().includes(term) ||
+      s.responseCode.toString().includes(term) ||
+      s.source?.toLowerCase().includes(term)
     );
   }
 
   static async findConflicts(integrationId, endpoints) {
     const existingScenarios = await this.listByIntegration(integrationId);
-    const existingMap = new Map();
+    const existingMap = new Map(
+      existingScenarios.map((s) => [`${s.method}:${s.endpoint}`, s])
+    );
 
-    existingScenarios.forEach((s) => {
-      const key = `${s.method}:${s.endpoint}`;
-      existingMap.set(key, s);
-    });
-
-    const conflicts = [];
-    const nonConflicts = [];
-
-    endpoints.forEach((ep) => {
-      const key = `${ep.method}:${ep.endpoint}`;
-      if (existingMap.has(key)) {
-        conflicts.push({
-          ...ep,
-          conflict: existingMap.get(key),
-        });
-      } else {
-        nonConflicts.push(ep);
-      }
-    });
-
-    return { conflicts, nonConflicts };
+    return endpoints.reduce(
+      (acc, ep) => {
+        const key = `${ep.method}:${ep.endpoint}`;
+        if (existingMap.has(key)) {
+          acc.conflicts.push({ ...ep, conflict: existingMap.get(key) });
+        } else {
+          acc.nonConflicts.push(ep);
+        }
+        return acc;
+      },
+      { conflicts: [], nonConflicts: [] }
+    );
   }
 }
 

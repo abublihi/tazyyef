@@ -1,21 +1,20 @@
 const MockService = require("../services/mockService");
 const { mockRateLimiter, createScenarioRateLimiter } = require("../middleware/rateLimiter");
 
-const scenarioLimiterCache = new Map();
+// WeakMap avoids memory leaks: entries are garbage-collected when scenario objects are no longer referenced
+const scenarioLimiterCache = new WeakMap();
 
 class MockController {
-  static async handle(req, res) {
+  static async handle(req, res, next) {
     const { integrationKey } = req.params;
     const endpoint = req.path.replace(`/${integrationKey}`, "") || "/";
-    const method = req.method;
+    const { method } = req;
 
-    const headers = {};
-    for (const [key, value] of Object.entries(req.headers)) {
-      headers[key.toLowerCase()] = value;
-    }
+    const headers = Object.fromEntries(
+      Object.entries(req.headers).map(([key, value]) => [key.toLowerCase(), value])
+    );
 
-    const query = req.query;
-    const body = req.body || {};
+    const { query, body = {} } = req;
 
     const match = await MockService.matchScenario(integrationKey, endpoint, method, headers, query, body);
 
@@ -23,27 +22,25 @@ class MockController {
       return res.status(404).json({ error: "No matching scenario found" });
     }
 
-    if (match.id && !scenarioLimiterCache.has(match.id)) {
-      scenarioLimiterCache.set(match.id, createScenarioRateLimiter(match));
+    // Lazy-create and cache rate limiter per scenario object
+    let scenarioLimiter = scenarioLimiterCache.get(match);
+    if (!scenarioLimiter) {
+      scenarioLimiter = createScenarioRateLimiter(match);
+      scenarioLimiterCache.set(match, scenarioLimiter);
     }
 
-    const scenarioLimiter = scenarioLimiterCache.get(match.id) || mockRateLimiter;
+    scenarioLimiter(req, res, () => {
+      let responseBody;
+      try {
+        responseBody = typeof match.responseBody === "string"
+          ? JSON.parse(match.responseBody)
+          : match.responseBody;
+      } catch {
+        responseBody = match.responseBody;
+      }
 
-    return new Promise((resolve) => {
-      scenarioLimiter(req, res, () => {
-        let responseBody;
-        try {
-          responseBody = typeof match.responseBody === "string"
-            ? JSON.parse(match.responseBody)
-            : match.responseBody;
-        } catch {
-          responseBody = match.responseBody;
-        }
-
-        res.locals.matchedScenarioId = match.id;
-        res.status(parseInt(match.responseCode, 10)).json(responseBody);
-        resolve();
-      });
+      res.locals.matchedScenarioId = match.id;
+      res.status(parseInt(match.responseCode, 10)).json(responseBody);
     });
   }
 }

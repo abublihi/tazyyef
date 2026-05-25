@@ -5,11 +5,18 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
+const HTML_ESCAPE_MAP = new Map([
+  ["&", "&amp;"],
+  ["<", "&lt;"],
+  [">", "&gt;"],
+  ['"', "&quot;"],
+  ["'", "&#x27;"],
+  ["/", "&#x2F;"],
+]);
+
 export function esc(str) {
   if (!str) return "";
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str).replace(/[&<>"'\/]/g, (char) => HTML_ESCAPE_MAP.get(char) ?? char);
 }
 
 export function formatTime(iso) {

@@ -2,7 +2,12 @@ require("dotenv").config();
 
 const isProd = process.env.NODE_ENV === "production";
 
-function require_env(name, fallback) {
+const parseIntOr = (val, fallback) => {
+  const parsed = parseInt(val, 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
+
+function requireEnv(name, fallback) {
   const value = process.env[name];
   if (!value) {
     if (isProd) throw new Error(`[Config] ${name} must be set in production`);
@@ -12,14 +17,14 @@ function require_env(name, fallback) {
 }
 
 module.exports = {
-  port: parseInt(process.env.PORT, 10) || 3000,
-  redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
-  adminUser: require_env("ADMIN_USER", "admin"),
-  adminPass: require_env("ADMIN_PASS", "admin"),
-  sessionSecret: require_env("SESSION_SECRET", "change-this-to-a-random-string"),
-  mockRateLimit: parseInt(process.env.MOCK_RATE_LIMIT, 10) || 100,
-  mockRateWindow: parseInt(process.env.MOCK_RATE_WINDOW_MS, 10) || 60000,
-  defaultScenarioRateLimit: parseInt(process.env.DEFAULT_SCENARIO_RATE_LIMIT, 10) || 50,
-  defaultScenarioRateWindow: parseInt(process.env.DEFAULT_SCENARIO_RATE_WINDOW_MS, 10) || 60000,
-  trafficLogTtlDays: parseInt(process.env.TRAFFIC_LOG_TTL_DAYS, 10) || 7,
+  port: parseIntOr(process.env.PORT, 3000),
+  redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+  adminUser: requireEnv("ADMIN_USER", "admin"),
+  adminPass: requireEnv("ADMIN_PASS", "admin"),
+  sessionSecret: requireEnv("SESSION_SECRET", "change-this-to-a-random-string"),
+  mockRateLimit: parseIntOr(process.env.MOCK_RATE_LIMIT, 100),
+  mockRateWindow: parseIntOr(process.env.MOCK_RATE_WINDOW_MS, 60000),
+  defaultScenarioRateLimit: parseIntOr(process.env.DEFAULT_SCENARIO_RATE_LIMIT, 50),
+  defaultScenarioRateWindow: parseIntOr(process.env.DEFAULT_SCENARIO_RATE_WINDOW_MS, 60000),
+  trafficLogTtlDays: parseIntOr(process.env.TRAFFIC_LOG_TTL_DAYS, 7),
 };

@@ -6,15 +6,14 @@ const INTEGRATION_INDEX = "integrations:index";
 const INTEGRATION_KEY_INDEX = "integration:key:index";
 
 class Integration {
-  // Create a new integration with auto-generated unique key
-  static async create({ name, description, key }) {
+  static async create({ name, description = "", key }) {
     const id = uuidv4();
-    const integrationKey = (key && key.trim()) ? key.trim() : `mock-${uuidv4().slice(0, 8)}`;
+    const integrationKey = key?.trim() || `mock-${uuidv4().slice(0, 8)}`;
     const integration = {
       id,
       name,
       key: integrationKey,
-      description: description || "",
+      description,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -28,38 +27,31 @@ class Integration {
     return integration;
   }
 
-  // Fetch a single integration by ID
   static async getById(id) {
     const data = await redis.hgetall(`${INTEGRATION_PREFIX}${id}`);
-    if (!data || !data.id) return null;
-    return data;
+    return data?.id ? data : null;
   }
 
-  // Fetch a single integration by its unique key (O(1) via secondary index)
   static async getByKey(key) {
     const id = await redis.hget(INTEGRATION_KEY_INDEX, key);
-    if (!id) return null;
-    return this.getById(id);
+    return id ? this.getById(id) : null;
   }
 
-  // List all integrations with optional search
   static async list(search) {
     const ids = await redis.smembers(INTEGRATION_INDEX);
-    const integrations = await Promise.all(
-      ids.map((id) => this.getById(id))
-    );
+    const integrations = await Promise.all(ids.map((id) => this.getById(id)));
     const results = integrations.filter(Boolean);
+
     if (!search) return results;
+
     const term = search.toLowerCase();
-    return results.filter(
-      (i) =>
-        i.name.toLowerCase().includes(term) ||
-        i.key.toLowerCase().includes(term) ||
-        (i.description && i.description.toLowerCase().includes(term))
+    return results.filter((i) =>
+      i.name.toLowerCase().includes(term) ||
+      i.key.toLowerCase().includes(term) ||
+      i.description?.toLowerCase().includes(term)
     );
   }
 
-  // Update integration fields
   static async update(id, fields) {
     const existing = await this.getById(id);
     if (!existing) return null;
@@ -82,7 +74,6 @@ class Integration {
     return updated;
   }
 
-  // Delete integration and all its scenarios
   static async delete(id) {
     const Scenario = require("./Scenario");
     await Scenario.deleteAllForIntegration(id);
@@ -91,7 +82,7 @@ class Integration {
     const multi = redis.multi();
     multi.del(`${INTEGRATION_PREFIX}${id}`);
     multi.srem(INTEGRATION_INDEX, id);
-    if (data && data.key) {
+    if (data?.key) {
       multi.hdel(INTEGRATION_KEY_INDEX, data.key);
     }
     await multi.exec();

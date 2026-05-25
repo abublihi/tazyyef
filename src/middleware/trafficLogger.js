@@ -1,40 +1,39 @@
 const Traffic = require("../models/Traffic");
 const Integration = require("../models/Integration");
 
-
 function trafficLogger(req, res, next) {
   const start = Date.now();
-  const requestPath = req.path;
+  const { path: requestPath, method, query, body = {}, headers } = req;
 
   const originalJson = res.json.bind(res);
 
-  res.json = function (body) {
+  res.json = function (jsonBody) {
     const responseTime = Date.now() - start;
-    const statusCode = res.statusCode;
+    const { statusCode } = res;
 
     if (requestPath.startsWith("/mock")) {
       const parts = requestPath.split("/").filter(Boolean);
-      const integrationKey = parts[1] || "";
+      const integrationKey = parts[1] ?? "";
 
       Integration.getByKey(integrationKey)
         .then((integration) =>
           Traffic.log({
             integrationKey,
-            integrationId: integration ? integration.id : "",
-            method: req.method,
+            integrationId: integration?.id ?? "",
+            method,
             path: requestPath,
-            headers: req.headers,
-            query: req.query,
-            body: req.body || {},
+            headers,
+            query,
+            body,
             statusCode,
             responseTime,
-            matchedScenarioId: res.locals.matchedScenarioId || "",
+            matchedScenarioId: res.locals.matchedScenarioId ?? "",
           })
         )
         .catch((err) => console.error("[Traffic] Failed to log:", err.message));
     }
 
-    return originalJson(body);
+    return originalJson(jsonBody);
   };
 
   next();

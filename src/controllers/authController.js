@@ -1,8 +1,9 @@
 const AuthService = require("../services/authService");
+const asyncHandler = require("../middleware/asyncHandler");
 
 class AuthController {
   // POST /api/admin/auth/login
-  static login(req, res) {
+  static login = asyncHandler(async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -13,27 +14,26 @@ class AuthController {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Store authenticated flag in session
     req.session.authenticated = true;
     req.session.username = username;
     res.json({ message: "Login successful" });
-  }
+  });
 
   // POST /api/admin/auth/logout
-  static logout(req, res) {
-    req.session.destroy((err) => {
-      if (err) return res.status(500).json({ error: "Failed to logout" });
-      res.json({ message: "Logged out" });
+  static logout = asyncHandler(async (req, res) => {
+    await new Promise((resolve, reject) => {
+      req.session.destroy((err) => (err ? reject(err) : resolve()));
     });
-  }
+    res.json({ message: "Logged out" });
+  });
 
   // GET /api/admin/auth/me
-  static me(req, res) {
-    if (req.session.authenticated) {
+  static me = asyncHandler(async (req, res) => {
+    if (req.session?.authenticated) {
       return res.json({ authenticated: true, username: req.session.username });
     }
     res.json({ authenticated: false });
-  }
+  });
 }
 
 module.exports = AuthController;

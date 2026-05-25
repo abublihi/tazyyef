@@ -1,94 +1,72 @@
 const Integration = require("../models/Integration");
 const Scenario = require("../models/Scenario");
 
+const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
+
 class MockService {
   // Find the best matching scenario for an incoming mock request.
   // A scenario is eligible only if ALL of its match criteria are satisfied.
   // Among eligible scenarios, the one with the most criteria wins (most specific).
-  static async matchScenario(
-    integrationKey,
-    endpoint,
-    method,
-    headers,
-    query,
-    body,
-  ) {
+  static async matchScenario(integrationKey, endpoint, method, headers, query, body) {
     const integration = await Integration.getByKey(integrationKey);
     if (!integration) return null;
 
     const reqMethod = method.toUpperCase();
-
     const scenarios = await Scenario.listByRoute(integration.id, reqMethod, endpoint);
     if (!scenarios.length) return null;
 
-    let bestMatch = null;
-    let bestScore = -1;
-
-    for (const raw of scenarios) {
-      const scenario = {
+    const eligible = scenarios
+      .map((raw) => ({
         ...raw,
         headers: JSON.parse(raw.headers || "{}"),
         queryParams: JSON.parse(raw.queryParams || "{}"),
         bodyParams: JSON.parse(raw.bodyParams || "{}"),
-      };
+      }))
+      .map((scenario) => {
+        const criteriaSets = [
+          { source: scenario.headers, target: headers, transformKey: (k) => k.toLowerCase() },
+          { source: scenario.queryParams, target: query },
+          ...(BODY_METHODS.has(reqMethod)
+            ? [{ source: scenario.bodyParams, target: body, coerce: true }]
+            : []),
+        ];
 
-      // Count total criteria and matched criteria
-      let totalCriteria = 0;
-      let matchedCriteria = 0;
-      let allMatch = true;
+        let matchedCriteria = 0;
+        let allMatch = true;
 
-      // Check headers
-      for (const [key, value] of Object.entries(scenario.headers)) {
-        totalCriteria += 1;
-        if (headers[key.toLowerCase()] === value) {
-          matchedCriteria += 1;
-        } else {
-          allMatch = false;
-        }
-      }
+        for (const { source, target, transformKey, coerce } of criteriaSets) {
+          for (const [key, expectedValue] of Object.entries(source)) {
+            const lookupKey = transformKey ? transformKey(key) : key;
+            const actualValue = target[lookupKey];
 
-      // Check query params
-      for (const [key, value] of Object.entries(scenario.queryParams)) {
-        totalCriteria += 1;
-        if (query[key] === value) {
-          matchedCriteria += 1;
-        } else {
-          allMatch = false;
-        }
-      }
+            const matches = coerce
+              ? actualValue !== undefined && String(actualValue) === String(expectedValue)
+              : actualValue === expectedValue;
 
-      // Check body params (only for methods that typically have a body)
-      if (["POST", "PUT", "PATCH"].includes(reqMethod)) {
-        for (const [key, value] of Object.entries(scenario.bodyParams)) {
-          totalCriteria += 1;
-          if (
-            body &&
-            body[key] !== undefined &&
-            String(body[key]) === String(value)
-          ) {
-            matchedCriteria += 1;
-          } else {
-            allMatch = false;
+            if (matches) {
+              matchedCriteria++;
+            } else {
+              allMatch = false;
+            }
           }
         }
-      }
 
-      // Scenario is only eligible if ALL its criteria are satisfied
-      if (!allMatch) continue;
+        return { scenario, allMatch, matchedCriteria };
+      })
+      .filter(({ allMatch }) => allMatch);
 
-      // Among eligible scenarios, prefer the one with the most criteria
-      if (matchedCriteria > bestScore) {
-        bestScore = matchedCriteria;
-        bestMatch = {
-          ...scenario,
-          id: raw.id,
-          rateLimit: raw.rateLimit ? parseInt(raw.rateLimit, 10) : null,
-          rateWindow: raw.rateWindow ? parseInt(raw.rateWindow, 10) : null,
-        };
-      }
-    }
+    if (!eligible.length) return null;
 
-    return bestMatch;
+    const best = eligible.reduce((a, b) =>
+      b.matchedCriteria > a.matchedCriteria ? b : a
+    );
+
+    return {
+      ...best.scenario,
+      id: best.scenario.id,
+      rateLimit: best.scenario.rateLimit ? parseInt(best.scenario.rateLimit, 10) : null,
+      rateWindow: best.scenario.rateWindow ? parseInt(best.scenario.rateWindow, 10) : null,
+    };
   }
 }
 

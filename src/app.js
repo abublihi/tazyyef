@@ -92,8 +92,9 @@ async function setupFrontend() {
   });
 
   app.use((err, req, res, _next) => {
-    console.error("[Error]", err.stack);
-    res.status(500).json({ error: "Internal server error" });
+    const statusCode = err.statusCode ?? (err.message?.includes("not found") ? 404 : 500);
+    console.error(`[Error ${statusCode}]`, err.stack ?? err.message);
+    res.status(statusCode).json({ error: err.message || "Internal server error" });
   });
 
   // ─── Start Server ─────────────────────────────────────────────────────────────
